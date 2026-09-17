@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Server Dashboard - Login</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .logo { text-align: center; margin-bottom: 24px; font-size: 28px; font-weight: bold; color: #38bdf8; }
+        .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; color: #cbd5e1; margin-bottom: 8px; }
+        input[type="password"] { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #fff; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        input[type="password"]:focus { border-color: #38bdf8; }
+        button { width: 100%; padding: 12px; background: #0284c7; hover: #0369a1; border: none; border-radius: 8px; color: #fff; font-weight: 600; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #0369a1; }
+        .error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; text-align: center; }
+        .hint { margin-top: 20px; font-size: 12px; text-align: center; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">⛏️ Bedrock 24/7</div>
+        <div class="subtitle">Minecraft Server Web Manager</div>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="POST">
+            <div class="form-group">
+                <label for="password">Admin Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter password" required autofocus>
+            </div>
+            <button type="submit">Log In to Dashboard</button>
+        </form>
+        <div class="hint">Default password: <code>admin123</code> (can be changed in settings)</div>
+    </div>
+</body>
+</html>

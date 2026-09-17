@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bedrock 24/7 - Ultimate Server Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0b1120;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --primary: #38bdf8;
+            --primary-hover: #0284c7;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 16px; min-height: 100vh; }
+        .container { max-width: 1080px; margin: 0 auto; }
+
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .title-group { display: flex; align-items: center; gap: 12px; }
+        .title { font-size: 24px; font-weight: 800; color: #fff; }
+        .badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge.online { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #059669; }
+        .badge.offline { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #dc2626; }
+        .badge.version { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #0284c7; }
+        .logout-btn { padding: 6px 14px; background: #334155; border: none; border-radius: 8px; color: #cbd5e1; text-decoration: none; font-size: 14px; font-weight: 500; transition: 0.2s; }
+        .logout-btn:hover { background: #475569; color: #fff; }
+
+        /* Connection Box */
+        .conn-box { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #0284c7; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.15); }
+        .conn-header { font-size: 12px; text-transform: uppercase; color: #38bdf8; font-weight: 800; margin-bottom: 12px; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; }
+        .conn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .conn-item { background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+        .conn-item-info { display: flex; flex-direction: column; gap: 2px; }
+        .conn-item-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .conn-item-val { font-size: 15px; font-weight: 700; color: #fff; font-family: monospace; }
+        .copy-btn-sm { background: #0284c7; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .copy-btn-sm:hover { background: #0369a1; }
+
+        /* Navigation Tabs */
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; border-bottom: 1px solid var(--card-border); }
+        .tab-btn { background: transparent; border: none; padding: 10px 18px; color: var(--text-muted); font-size: 14px; font-weight: 600; border-radius: 8px 8px 0 0; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .tab-btn:hover { color: #fff; background: rgba(51, 65, 85, 0.5); }
+        .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); background: rgba(56, 189, 248, 0.1); }
+
+        /* Grid Cards */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.5px; }
+        .card-val { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .card-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+        /* Progress Bar */
+        .progress-bar { width: 100%; height: 6px; background: #334155; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .progress-fill { height: 100%; background: var(--primary); transition: width 0.3s; }
+
+        /* Buttons */
+        .btn { padding: 9px 16px; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-start { background: var(--success); color: #fff; }
+        .btn-start:hover { background: #059669; }
+        .btn-restart { background: var(--warning); color: #fff; }
+        .btn-restart:hover { background: #d97706; }
+        .btn-stop { background: var(--danger); color: #fff; }
+        .btn-stop:hover { background: #dc2626; }
+        .btn-secondary { background: #334155; color: #cbd5e1; }
+        .btn-secondary:hover { background: #475569; color: #fff; }
+        .btn-primary { background: var(--primary-hover); color: #fff; }
+        .btn-primary:hover { background: #0284c7; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+        /* Action Bar */
+        .action-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+
+        /* Chart */
+        .chart-container { position: relative; height: 220px; width: 100%; margin-top: 10px; }
+
+        /* Player Table */
+        .player-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .player-table th { text-align: left; padding: 10px 12px; background: #0f172a; color: var(--text-muted); font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--card-border); }
+        .player-table td { padding: 12px; border-bottom: 1px solid #1e293b; font-size: 14px; vertical-align: middle; }
+        .player-row { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        .player-avatar { width: 32px; height: 32px; background: #38bdf8; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; color: #0f172a; }
+
+        /* Console */
+        .console-card { background: #020617; border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+        .console-header { background: #1e293b; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; }
+        .console-logs { height: 300px; overflow-y: auto; padding: 14px; font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 13px; line-height: 1.5; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; }
+        .console-input-bar { display: flex; border-top: 1px solid var(--card-border); background: #0f172a; }
+        .console-input { flex: 1; padding: 12px 16px; background: transparent; border: none; color: #fff; font-family: monospace; font-size: 14px; outline: none; }
+        .console-send { padding: 0 20px; background: #0284c7; border: none; color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .console-send:hover { background: #0369a1; }
+
+        /* World Box */
+        .world-box { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; }
+        .world-action-card { flex: 1; min-width: 280px; background: #0f172a; border: 1px dashed var(--card-border); border-radius: 10px; padding: 20px; text-align: center; }
+        .world-action-card h3 { font-size: 16px; margin-bottom: 8px; color: #e2e8f0; }
+        .world-action-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+        /* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 16px; }
+        .setting-item { display: flex; flex-direction: column; gap: 6px; }
+        .setting-label { font-size: 12px; color: var(--text-muted); }
+        .setting-input { padding: 9px 12px; background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; color: #fff; font-size: 14px; outline: none; }
+        .setting-input:focus { border-color: var(--primary); }
+
+        /* Version Switcher Styles */
+        .version-card { background: #1e293b; border: 1px solid #0284c7; border-radius: 12px; padding: 22px; margin-bottom: 20px; }
+        .version-badge-lg { font-size: 20px; font-weight: 800; color: #38bdf8; font-family: monospace; background: rgba(56, 189, 248, 0.1); padding: 4px 14px; border-radius: 8px; border: 1px solid #0284c7; display: inline-block; }
+        .version-presets { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+        .preset-btn { padding: 6px 14px; background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; color: #cbd5e1; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .preset-btn:hover { border-color: var(--primary); color: #fff; }
+
+        /* Toast */
+        #toast { position: fixed; bottom: 20px; right: 20px; background: #0284c7; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; display: none; z-index: 1000; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="title-group">
+                <div class="title">⛏️ Bedrock 24/7</div>
+                <div id="statusBadge" class="badge online">ONLINE</div>
+                <div id="versionBadge" class="badge version">v1.26.45.1</div>
+            </div>
+            <a href="/logout" class="logout-btn">Log Out</a>
+        </header>
+
+        <!-- Prominent Server Connection Details -->
+        <div class="conn-box">
+            <div class="conn-header">
+                <span>📱 Minecraft Mobile Connection Details</span>
+                <span style="color: #94a3b8; font-size: 11px;">Protocol: UDP 24/7</span>
+            </div>
+            <div class="conn-grid">
+                <div class="conn-item">
+                    <div class="conn-item-info">
+                        <span class="conn-item-label">Server Domain</span>
+                        <span class="conn-item-val" id="dispDomain">nicely-retread.tun.ply.gg</span>
+                    </div>
+                    <button class="copy-btn-sm" onclick="copyText('dispDomain')">📋 Copy</button>
+                </div>
+                <div class="conn-item">
+                    <div class="conn-item-info">
+                        <span class="conn-item-label">Server Numeric IP</span>
+                        <span class="conn-item-val" id="dispIp">147.185.221.213</span>
+                    </div>
+                    <button class="copy-btn-sm" onclick="copyText('dispIp')">📋 Copy</button>
+                </div>
+                <div class="conn-item">
+                    <div class="conn-item-info">
+                        <span class="conn-item-label">Server Port</span>
+                        <span class="conn-item-val" id="dispPort">17373</span>
+                    </div>
+                    <button class="copy-btn-sm" onclick="copyText('dispPort')">📋 Copy</button>
+                </div>
+                <div class="conn-item">
+                    <div class="conn-item-info">
+                        <span class="conn-item-label">Full Address</span>
+                        <span class="conn-item-val" id="dispFull">nicely-retread.tun.ply.gg:17373</span>
+                    </div>
+                    <button class="copy-btn-sm" onclick="copyText('dispFull')">📋 Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-overview')">📊 Overview & Live Usage</button>
+            <button class="tab-btn" onclick="switchTab('tab-version')">🔄 Switch Version</button>
+            <button class="tab-btn" onclick="switchTab('tab-players')">👥 Player Management</button>
+            <button class="tab-btn" onclick="switchTab('tab-cheats')">🎮 In-Game OP Cheats & Guide</button>
+            <button class="tab-btn" onclick="switchTab('tab-world')">🌍 Import / Export World</button>
+            <button class="tab-btn" onclick="switchTab('tab-console')">🖥️ Live Console</button>
+            <button class="tab-btn" onclick="switchTab('tab-settings')">⚙️ Settings</button>
+        </div>
+
+        <!-- ================= TAB 1: OVERVIEW & LIVE USAGE ================= -->
+        <div id="tab-overview">
+            <div class="action-bar">
+                <button class="btn btn-start" onclick="serverAction('start')">▶ Start Server</button>
+                <button class="btn btn-restart" onclick="serverAction('restart')">🔄 Restart Server</button>
+                <button class="btn btn-stop" onclick="serverAction('stop')">⏹ Stop Server</button>
+                <button class="btn btn-primary" onclick="switchToVersionTab()">⚡ Change Version</button>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Live RAM Usage</div>
+                    <div class="card-val" id="memVal">-- MB</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="memProgress" style="width: 25%;"></div>
+                    </div>
+                    <div class="card-sub" id="memBudget">Budget: 1024 MB (1 GB)</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Live CPU Load</div>
+                    <div class="card-val" id="cpuVal">-- %</div>
+                    <div class="card-sub">Process: bedrock_server</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Online Players</div>
+                    <div class="card-val" id="playersVal">0 / 10</div>
+                    <div class="card-sub">Render Distance: 6 chunks</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Uptime / World Size</div>
+                    <div class="card-val" id="uptimeVal">--</div>
+                    <div class="card-sub" id="worldSizeSub">World Size: --</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="card-title">📈 Real-Time Resource Usage (Live Graph)</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">Auto-updating every 2s</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="usageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 2: VERSION SWITCHER ================= -->
+        <div id="tab-version" class="hidden">
+            <div class="version-card">
+                <div class="card-title" style="font-size: 16px; color: #fff; margin-bottom: 12px;">⚡ Switch Bedrock Server Version</div>
+                <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+                    Type any Minecraft Bedrock version below. The system will cleanly delete the old server engine files, download the exact new version, and start the server with your world intact!
+                </p>
+
+                <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Currently Active Server Version</div>
+                        <div class="version-badge-lg" id="currVerBadge">1.26.45.1</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Server Address & Port</div>
+                        <div style="font-size: 15px; font-weight: bold; color: #fff; font-family: monospace;">nicely-retread.tun.ply.gg:17373</div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 13px; color: #e2e8f0; font-weight: 600; margin-bottom: 8px;">Enter Target Version Number:</label>
+                    <input type="text" id="targetVersionInput" class="setting-input" style="width: 100%; font-size: 16px; padding: 12px; font-family: monospace;" placeholder="e.g. 1.26.2, 1.26.45.1, 1.26.0, 1.21.50">
+                </div>
+
+                <div style="font-size: 12px; color: var(--text-muted);">Quick Select Presets:</div>
+                <div class="version-presets">
+                    <button class="preset-btn" onclick="setVersionInput('1.26.45.1')">1.26.45.1 (Latest)</button>
+                    <button class="preset-btn" onclick="setVersionInput('1.26.2')">1.26.2 (Stable)</button>
+                    <button class="preset-btn" onclick="setVersionInput('1.26.0')">1.26.0</button>
+                    <button class="preset-btn" onclick="setVersionInput('1.21.50')">1.21.50 (Legacy)</button>
+                    <button class="preset-btn" onclick="setVersionInput('1.21.31')">1.21.31</button>
+                </div>
+
+                <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #cbd5e1; margin-bottom: 18px;">
+                    ℹ️ <strong>World & Data Safe:</strong> Your world map, buildings, player inventories, and operator settings are stored in <code>/data</code> and will <strong>NOT</strong> be deleted. Only the server program files will be switched.
+                </div>
+
+                <button id="switchVerBtn" class="btn btn-primary" style="padding: 12px 24px; font-size: 15px;" onclick="executeVersionSwitch()">
+                    🚀 Download, Replace & Start Server
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= TAB 3: PLAYER MANAGEMENT ================= -->
+        <div id="tab-players" class="hidden">
+            <div class="card" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div class="card-title" style="font-size: 15px; margin: 0;">🎮 Online Players (<span id="onlineCountSpan">0</span>)</div>
+                    <button class="btn btn-secondary btn-sm" onclick="fetchPlayers()">🔄 Refresh</button>
+                </div>
+                
+                <div id="noPlayersMsg" style="color: var(--text-muted); font-size: 14px; padding: 20px 0; text-align: center;">
+                    No players currently connected. Join from your mobile device to see them here!
+                </div>
+
+                <div id="playerTableContainer" class="hidden">
+                    <table class="player-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playerTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 12px;">👑 Operator (Admin) Controls</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                    <input type="text" id="targetOpName" class="setting-input" style="flex: 1; min-width: 200px;" placeholder="Player Gamertag (e.g. Steve)" onkeydown="if(event.key==='Enter') playerActionDirect('op')">
+                    <button class="btn btn-primary" onclick="playerActionDirect('op')">Make Admin (OP)</button>
+                    <button class="btn btn-secondary" onclick="playerActionDirect('deop')">Remove Admin (Deop)</button>
+                </div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                    Operators have full permission to change gamemodes, teleport, and manage the server in-game.
+                </div>
+
+                <div style="border-top: 1px solid var(--card-border); padding-top: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 13px; font-weight: 700; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px;">👑 Active Server Operators (Admins)</span>
+                        <span id="opsCountBadge" class="badge online" style="font-size: 11px;">0 Admins</span>
+                    </div>
+                    <div id="operatorsList" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <div class="card-title" style="font-size: 15px; margin: 0;">🛡️ Whitelist (Allowlist)</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Only approved players can join when enabled</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="whitelistStatusBadge" class="badge offline">DISABLED</span>
+                        <button id="whitelistToggleBtn" class="btn btn-secondary btn-sm" onclick="toggleWhitelist()">Enable Whitelist</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                    <input type="text" id="newWhitelistPlayer" class="setting-input" style="flex: 1;" placeholder="Enter Player Gamertag to Whitelist">
+                    <button class="btn btn-primary btn-sm" onclick="addWhitelist()">+ Add Player</button>
+                </div>
+
+                <div id="whitelistList" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+            </div>
+        </div>
+
+        <!-- ================= TAB: IN-GAME OP CHEATS & GUIDE ================= -->
+        <div id="tab-cheats" class="hidden">
+            <!-- 1. Mobile In-Game Guide Banner -->
+            <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #38bdf8;">
+                <div style="display: flex; align-items: flex-start; gap: 14px;">
+                    <div style="font-size: 32px;">📱</div>
+                    <div>
+                        <div style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-bottom: 6px;">How to Use OP Commands In-Game on Mobile</div>
+                        <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                            <strong>1. Chat Icon:</strong> Minecraft Mobile mein screen ke theek top-center mein chhota speech bubble <code>💬</code> icon dabao.<br>
+                            <strong>2. Slash <code>/</code> lagao:</strong> Har command <code>/</code> se shuru hoti hai (jaise <code>/gamemode c</code> ya <code>/give @s diamond 64</code>).<br>
+                            <strong>3. Send:</strong> Keyboard ka Enter / Send button dabao aur command turant execute ho jayegi!<br>
+                            <em>💡 Tip: Tum yahan web dashboard se bhi bina game mein likhe <strong>⚡ Execute on Server</strong> dabakar direct run kar sakte ho!</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Big Screen Announcement Card -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 8px;">📢 Big Screen Announcement (Broadcast to All Players)</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                    Send a huge golden title banner directly in the middle of all online mobile players' screens!
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="broadcastMsgInput" class="setting-input" style="flex: 1; min-width: 260px;" placeholder="Type announcement (e.g. Server will restart in 5 mins! or Welcome!)" onkeydown="if(event.key==='Enter') sendBroadcast()">
+                    <button class="btn btn-primary" onclick="sendBroadcast()">📢 Send to Game Screen</button>
+                </div>
+            </div>
+
+            <!-- 3. Target Player Selector for Buffs & Items -->
+            <div class="card" style="margin-bottom: 20px; background: #0f172a;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <div class="card-title" style="font-size: 14px; margin: 0; color: #fff;">🎯 Target Player for Buffs & Items:</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Select who receives the buffs or items when you click "Execute"</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select id="cheatTargetPlayer" class="setting-input" style="min-width: 200px; font-weight: 600;">
+                            <option value="@a">@a (All Players)</option>
+                            <option value="@s">@s (Command Sender)</option>
+                            <option value="biswajit2876">biswajit2876 (Admin)</option>
+                            <option value="MC FLASH1564">MC FLASH1564 (Admin)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Game Rules 1-Click Fast Toggles -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 6px;">🛡️ Game Rules 1-Click Fast Toggles</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                    Change core world rules live without restarting the server.
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                    <!-- Keep Inventory -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">🎒 Keep Inventory on Death</span>
+                            <span class="badge online" style="font-size: 10px;">RECOMMENDED</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Lava, mob, ya unchai se marne par samaan kabhi drop nahi hoga!
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('keepinventory', 'true')">✅ Enable KeepInv</button>
+                            <button class="btn btn-stop btn-sm" onclick="setGameRule('keepinventory', 'false')">❌ Disable</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule keepinventory true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Anti-Creeper Griefing -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">💥 Anti-Creeper / Mob Griefing</span>
+                            <span class="badge online" style="font-size: 10px;">POPULAR</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Creeper blast aur Enderman se ghar, wooden blocks, ya chests nahi phootenge.
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('mobgriefing', 'false')">🛡️ Protect Blocks</button>
+                            <button class="btn btn-stop btn-sm" onclick="setGameRule('mobgriefing', 'true')">Allow Break</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule mobgriefing false')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Show Coordinates -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">📍 Show XYZ Coordinates</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Screen ke top-left corner mein Position XYZ hamesha dikhayega.
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('showcoordinates', 'true')">✅ Show XYZ</button>
+                            <button class="btn btn-stop btn-sm" onclick="setGameRule('showcoordinates', 'false')">❌ Hide</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule showcoordinates true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Friendly PvP Mode -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">⚔️ PvP Combat Toggle</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Doston ke beech aapas mein ladai / damage on ya off karo.
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('pvp', 'false')">🛡️ No Friendly Fire</button>
+                            <button class="btn btn-restart btn-sm" onclick="setGameRule('pvp', 'true')">⚔️ Allow PvP</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule pvp false')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Daylight Cycle -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">☀️ Daylight Cycle (Sun/Moon)</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Time freeze karo (always day) ya normal din/raat cycle chalu rakho.
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('dodaylightcycle', 'true')">🔄 Normal Cycle</button>
+                            <button class="btn btn-restart btn-sm" onclick="setGameRule('dodaylightcycle', 'false')">⏸️ Freeze Time</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule dodaylightcycle false')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Fire Spread -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">🔥 Fire Spread Protection</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Aag phailne se lakdi aur ped jalna rokna.
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('dofiretick', 'false')">🛡️ Stop Fire Spread</button>
+                            <button class="btn btn-stop btn-sm" onclick="setGameRule('dofiretick', 'true')">Allow Fire</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule dofiretick false')">📋 Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Instant Superpowers & God Buffs -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 6px;">⚡ Instant Superpowers & Potion Buffs</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                    Give permanent god powers (no particle effects, clean screen).
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">👁️ Night Vision (Permanent)</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Gufaon (caves) aur raat me din jaisa saaf dikhega.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerBuff('night_vision')">⚡ Give Night Vision</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/effect @s night_vision 99999 1 true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">⚡ Super Speed II</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">2x super fast sprinting bina thake.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerBuff('speed')">⚡ Give Speed II</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/effect @s speed 99999 2 true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">🍖 Infinite Hunger (Saturation)</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Bhookh kabhi nahi lagegi, health auto-heal hoti rahegi.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerBuff('saturation')">⚡ Never Hungry</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/effect @s saturation 99999 1 true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">⚔️ Super Strength II</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Monsters ko 1-hit kill karne ki super power.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerBuff('strength')">⚡ Give Strength</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/effect @s strength 99999 2 true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">❤️ God Regeneration</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Damage lagte hi instant health recover.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerBuff('regeneration')">⚡ Rapid Regen</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/effect @s regeneration 99999 2 true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #ef4444; margin-bottom: 4px;">🧹 Clear All Effects</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Saare active potion effects hata kar normal ho jao.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-stop btn-sm" onclick="triggerBuff('clear')">❌ Clear Effects</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/effect @s clear')">📋 Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. 1-Click Instant Items & Weapons -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 6px;">💎 1-Click Instant Items & Weapons</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                    Give high-tier items directly into inventory.
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">💎 64x Diamonds</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Full stack diamonds in inventory.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerItem('diamonds')">🎁 Give 64 Diamonds</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/give @s diamond 64')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #a855f7; margin-bottom: 4px;">⚔️ Full Netherite Armor & Tools</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Sword + Pickaxe + Full Armor set.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerItem('netherite_gear')">🎁 Give Netherite Gear</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/give @s netherite_sword 1')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">🪽 Elytra Wings & 64 Fireworks</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Aasman mein rocket se udne ke liye.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerItem('elytra')">🎁 Give Elytra</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/give @s elytra 1')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #f59e0b; margin-bottom: 4px;">🍎 64x Enchanted Golden Apples</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Super God Apples (Full absorption & regen).</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerItem('golden_apples')">🎁 Give 64 God Apples</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/give @s enchanted_golden_apple 64')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #10b981; margin-bottom: 4px;">🛡️ Totem of Undying</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Offhand me pakdo, marne se bacha lega.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerItem('totem')">🎁 Give Totem</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/give @s totem_of_undying 1')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 12px;">
+                        <div style="font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">🧱 64x Iron Ingots</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Full stack iron for building and anvils.</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-primary btn-sm" onclick="triggerItem('iron')">🎁 Give 64 Iron</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/give @s iron_ingot 64')">📋 Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. Teleportation & World Exploration Commands -->
+            <div class="card">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 6px;">🚀 Teleportation & World Exploration (In-Game Commands)</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                    Game chat mein ye commands likh kar village, fortresses aur doston ke paas turant jao:
+                </div>
+                <table class="player-table">
+                    <thead>
+                        <tr>
+                            <th>Action & Purpose</th>
+                            <th>In-Game Command</th>
+                            <th>Quick Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>🏡 Find Nearest Village</strong><br><span style="font-size: 11px; color: var(--text-muted);">Paas ka gaon dhundho aur coordinates pao</span></td>
+                            <td><code>/locate structure village</code></td>
+                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/locate structure village')">📋 Copy</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🏰 Find Nether Fortress</strong><br><span style="font-size: 11px; color: var(--text-muted);">Blaze rods & Wither skulls ke liye</span></td>
+                            <td><code>/locate structure fortress</code></td>
+                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/locate structure fortress')">📋 Copy</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🏛️ Find Ancient City</strong><br><span style="font-size: 11px; color: var(--text-muted);">Deep dark Warden city coordinates</span></td>
+                            <td><code>/locate structure ancient_city</code></td>
+                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/locate structure ancient_city')">📋 Copy</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>📍 Set Respawn Point</strong><br><span style="font-size: 11px; color: var(--text-muted);">Jahan khade ho wahi spawn point set karo</span></td>
+                            <td><code>/spawnpoint</code></td>
+                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/spawnpoint')">📋 Copy</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>👥 Teleport to Friend</strong><br><span style="font-size: 11px; color: var(--text-muted);">Dost ke paas teleport ho jao</span></td>
+                            <td><code>/tp @s "PlayerName"</code></td>
+                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/tp @s ')">📋 Copy</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🎨 Creative Mode Switch</strong><br><span style="font-size: 11px; color: var(--text-muted);">Unlimited blocks & flying</span></td>
+                            <td><code>/gamemode creative</code></td>
+                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamemode creative')">📋 Copy</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>🌲 Survival Mode Switch</strong><br><span style="font-size: 11px; color: var(--text-muted);">Normal game play</span></td>
+                            <td><code>/gamemode survival</code></td>
+                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamemode survival')">📋 Copy</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ================= TAB 4: IMPORT & EXPORT WORLD ================= -->
+        <div id="tab-world" class="hidden">
+            <div class="card">
+                <div class="card-title" style="font-size: 16px; margin-bottom: 8px;">🌍 World Management (Backup & Restore)</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                    Export your server world anytime to play single-player on your phone or keep a backup. Or import any <code>.mcworld</code> or <code>.zip</code> file to load a new map!
+                </p>
+
+                <div class="world-box">
+                    <div class="world-action-card">
+                        <div style="font-size: 36px; margin-bottom: 10px;">💾</div>
+                        <h3>Export Active World</h3>
+                        <p>Downloads your current world save as a <code>.mcworld</code> file. You can directly open it in Minecraft Mobile!</p>
+                        <a href="/api/world/export" class="btn btn-primary" style="text-decoration: none; display: inline-block;">
+                            ⬇️ Download World (.mcworld)
+                        </a>
+                    </div>
+
+                    <div class="world-action-card">
+                        <div style="font-size: 36px; margin-bottom: 10px;">📤</div>
+                        <h3>Import World Backup</h3>
+                        <p>Upload a <code>.mcworld</code> or <code>.zip</code> file. A backup of the current world will be created automatically.</p>
+                        <form id="importWorldForm" onsubmit="handleWorldImport(event)" enctype="multipart/form-data">
+                            <input type="file" id="worldFileInput" name="world_file" accept=".zip,.mcworld" class="setting-input" style="width: 100%; margin-bottom: 12px;" required>
+                            <button type="submit" id="importSubmitBtn" class="btn btn-restart" style="width: 100%; justify-content: center;">
+                                ⬆️ Upload & Load World
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 5: LIVE CONSOLE ================= -->
+        <div id="tab-console" class="hidden">
+            <div class="quick-bar" style="margin-bottom: 14px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="sendQuickCmd('time set day')">☀️ Day</button>
+                    <button class="btn btn-secondary btn-sm" onclick="sendQuickCmd('time set night')">🌙 Night</button>
+                    <button class="btn btn-secondary btn-sm" onclick="sendQuickCmd('weather clear')">🌤️ Clear Weather</button>
+                    <button class="btn btn-secondary btn-sm" onclick="sendQuickCmd('difficulty peaceful')">Peaceful</button>
+                    <button class="btn btn-secondary btn-sm" onclick="sendQuickCmd('difficulty easy')">Easy</button>
+                    <button class="btn btn-secondary btn-sm" onclick="sendQuickCmd('difficulty normal')">Normal</button>
+                    <button class="btn btn-secondary btn-sm" onclick="sendQuickCmd('list')">👥 List Players</button>
+                </div>
+            </div>
+
+            <div class="console-card">
+                <div class="console-header">
+                    <span>🖥️ Live Bedrock Server Console</span>
+                    <span id="consoleAutoScrollText" style="cursor: pointer;" onclick="toggleAutoScroll()">Auto-scroll: ON</span>
+                </div>
+                <div class="console-logs" id="logsBox">Connecting to console...</div>
+                <div class="console-input-bar">
+                    <input type="text" id="cmdInput" class="console-input" placeholder="Type Minecraft command (e.g. say Hello!, gamemode creative Steve, op Alex)..." onkeydown="handleKeyDown(event)">
+                    <button class="console-send" onclick="sendCmd()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 6: SETTINGS ================= -->
+        <div id="tab-settings" class="hidden">
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 12px;">⚙️ Server Configuration (server.properties)</div>
+                <div class="settings-grid">
+                    <div class="setting-item" style="grid-column: 1 / -1;">
+                        <span class="setting-label">Server Display Name (MOTD in Minecraft List)</span>
+                        <input type="text" id="set_server_name" class="setting-input" value="Bedrock 24/7 Server" placeholder="My Epic Bedrock Server">
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Render Distance (chunks)</span>
+                        <input type="number" id="set_view_distance" class="setting-input" value="6" min="5" max="32">
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Max Players</span>
+                        <input type="number" id="set_max_players" class="setting-input" value="10" min="1" max="100">
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Allow Cheats</span>
+                        <select id="set_allow_cheats" class="setting-input">
+                            <option value="true">true (Admin commands allowed)</option>
+                            <option value="false">false (Pure Survival)</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Difficulty</span>
+                        <select id="set_difficulty" class="setting-input">
+                            <option value="peaceful">Peaceful</option>
+                            <option value="easy">Easy</option>
+                            <option value="normal">Normal</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="saveSettings()">💾 Save & Restart Server</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 12px;">🔒 Change Dashboard Password</div>
+                <div style="display: flex; gap: 10px; max-width: 450px;">
+                    <input type="password" id="newPassword" class="setting-input" style="flex: 1;" placeholder="Enter new password (min 4 chars)">
+                    <button class="btn btn-secondary" onclick="changePassword()">Update Password</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast">Copied to clipboard!</div>
+
+    <script>
+        let autoScroll = true;
+        let isWhitelistEnabled = false;
+
+        // Chart setup
+        const ctx = document.getElementById('usageChart').getContext('2d');
+        const maxDataPoints = 25;
+        const chartLabels = Array(maxDataPoints).fill('');
+        const ramData = Array(maxDataPoints).fill(0);
+        const cpuData = Array(maxDataPoints).fill(0);
+
+        const usageChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [
+                    {
+                        label: 'RAM (MB)',
+                        data: ramData,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'CPU (%)',
+                        data: cpuData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: { display: false },
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        min: 0,
+                        max: 1024,
+                        grid: { color: '#1e293b' },
+                        ticks: { color: '#94a3b8' },
+                        title: { display: true, text: 'RAM (MB)', color: '#38bdf8' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        min: 0,
+                        max: 100,
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#94a3b8' },
+                        title: { display: true, text: 'CPU (%)', color: '#f59e0b' }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#cbd5e1' } }
+                }
+            }
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (event && event.target && event.target.classList.contains('tab-btn')) {
+                event.target.classList.add('active');
+            } else {
+                const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+                if (targetBtn) targetBtn.classList.add('active');
+            }
+
+            document.getElementById('tab-overview').classList.add('hidden');
+            document.getElementById('tab-version').classList.add('hidden');
+            document.getElementById('tab-players').classList.add('hidden');
+            document.getElementById('tab-cheats').classList.add('hidden');
+            document.getElementById('tab-world').classList.add('hidden');
+            document.getElementById('tab-console').classList.add('hidden');
+            document.getElementById('tab-settings').classList.add('hidden');
+
+            document.getElementById(tabId).classList.remove('hidden');
+
+            if (tabId === 'tab-players' || tabId === 'tab-cheats') fetchPlayers();
+        }
+
+        function switchToVersionTab() {
+            switchTab('tab-version');
+        }
+
+        function setVersionInput(ver) {
+            document.getElementById('targetVersionInput').value = ver;
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.style.background = isError ? "#ef4444" : "#0284c7";
+            toast.style.display = "block";
+            setTimeout(() => { toast.style.display = "none"; }, 3500);
+        }
+
+        function copyText(elemId) {
+            const text = document.getElementById(elemId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Copied: " + text);
+            });
+        }
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            document.getElementById("consoleAutoScrollText").innerText = "Auto-scroll: " + (autoScroll ? "ON" : "OFF");
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch("/api/status");
+                if (res.status === 401) {
+                    window.location.href = "/login";
+                    return;
+                }
+                const data = await res.json();
+                
+                const badge = document.getElementById("statusBadge");
+                if (data.running) {
+                    badge.className = "badge online";
+                    badge.innerText = "ONLINE (24x7)";
+                } else {
+                    badge.className = "badge offline";
+                    badge.innerText = "OFFLINE";
+                }
+
+                document.getElementById("versionBadge").innerText = "v" + data.version;
+                document.getElementById("currVerBadge").innerText = data.version;
+
+                document.getElementById("dispDomain").innerText = data.tunnel_domain;
+                document.getElementById("dispIp").innerText = data.tunnel_ip;
+                document.getElementById("dispPort").innerText = data.tunnel_port;
+                document.getElementById("dispFull").innerText = data.tunnel_domain + ":" + data.tunnel_port;
+
+                document.getElementById("memVal").innerText = data.memory_mb + " MB (" + data.memory_pct + "%)";
+                document.getElementById("memProgress").style.width = data.memory_pct + "%";
+                document.getElementById("cpuVal").innerText = data.cpu_pct + " %";
+                document.getElementById("playersVal").innerText = data.online_count + " / " + data.max_players;
+                document.getElementById("uptimeVal").innerText = data.uptime;
+                document.getElementById("worldSizeSub").innerText = "World Size: " + data.world_size + " | Disk: " + data.disk_usage;
+
+                // Update Chart
+                ramData.push(data.memory_mb);
+                ramData.shift();
+                cpuData.push(data.cpu_pct);
+                cpuData.shift();
+                usageChart.update();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function executeVersionSwitch() {
+            const input = document.getElementById("targetVersionInput");
+            const ver = input.value.trim();
+            if (!ver) {
+                alert("Please enter a version number! (e.g. 1.26.2 or 1.26.45.1)");
+                return;
+            }
+
+            if (!confirm("Switch server to version " + ver + "?\n\nOld server binary will be deleted and replaced with " + ver + ".\nYour world data and inventories are 100% safe!")) {
+                return;
+            }
+
+            const btn = document.getElementById("switchVerBtn");
+            btn.disabled = true;
+            btn.innerText = "⏳ Downloading & Installing v" + ver + "... (Please wait)";
+
+            try {
+                const res = await fetch("/api/version/switch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ version: ver })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || "Version switched successfully!");
+                    input.value = "";
+                    fetchStatus();
+                } else {
+                    alert("Version Switch Error: " + (data.error || "Failed to switch version"));
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "🚀 Download, Replace & Start Server";
+                setTimeout(fetchStatus, 3000);
+            }
+        }
+
+        async function fetchLogs() {
+            try {
+                const res = await fetch("/api/logs");
+                if (res.ok) {
+                    const data = await res.json();
+                    const box = document.getElementById("logsBox");
+                    box.innerText = data.logs.join("\n");
+                    if (autoScroll) {
+                        box.scrollTop = box.scrollHeight;
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function fetchPlayers() {
+            try {
+                const res = await fetch("/api/players");
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const onlineCount = data.online.length;
+                document.getElementById("onlineCountSpan").innerText = onlineCount;
+
+                const noMsg = document.getElementById("noPlayersMsg");
+                const tableContainer = document.getElementById("playerTableContainer");
+                const tbody = document.getElementById("playerTableBody");
+                tbody.innerHTML = "";
+
+                const ops = data.operators || [];
+                const opXuids = new Set(ops.map(o => o.xuid));
+                const opNames = new Set(ops.map(o => o.name.toLowerCase()));
+
+                if (onlineCount === 0) {
+                    noMsg.classList.remove("hidden");
+                    tableContainer.classList.add("hidden");
+                } else {
+                    noMsg.classList.add("hidden");
+                    tableContainer.classList.remove("hidden");
+
+                    data.online.forEach(player => {
+                        const tr = document.createElement("tr");
+                        const playerLower = player.toLowerCase();
+                        const playerXuid = (data.name_to_xuid && data.name_to_xuid[playerLower]) || "";
+                        const isOp = opNames.has(playerLower) || (playerXuid && opXuids.has(playerXuid));
+
+                        tr.innerHTML = `
+                            <td>
+                                <div class="player-row">
+                                    <div class="player-avatar" style="${isOp ? 'background: #f59e0b; color: #000;' : ''}">${player[0].toUpperCase()}</div>
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span>${player}</span>
+                                            ${isOp ? '<span class="badge online" style="font-size: 10px; padding: 2px 6px;">👑 ADMIN</span>' : ''}
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--text-muted);">${playerXuid ? 'XUID: ' + playerXuid : 'Connected'}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                    ${isOp 
+                                        ? `<button class="btn btn-secondary btn-sm" onclick="sendPlayerAction('${player}', 'deop', {xuid: '${playerXuid}'})">Revoke OP</button>`
+                                        : `<button class="btn btn-primary btn-sm" onclick="sendPlayerAction('${player}', 'op', {xuid: '${playerXuid}'})">👑 Make OP</button>`
+                                    }
+                                    <button class="btn btn-secondary btn-sm" onclick="sendPlayerAction('${player}', 'gamemode', {mode: 'creative'})">Creative</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="sendPlayerAction('${player}', 'gamemode', {mode: 'survival'})">Survival</button>
+                                    <button class="btn btn-stop btn-sm" onclick="sendPlayerAction('${player}', 'kick')">🚫 Kick</button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                // Operators List UI
+                const opContainer = document.getElementById("operatorsList");
+                const opsCountBadge = document.getElementById("opsCountBadge");
+                if (opContainer) {
+                    opContainer.innerHTML = "";
+                    if (opsCountBadge) opsCountBadge.innerText = `${ops.length} Admin${ops.length === 1 ? '' : 's'}`;
+                    if (ops.length === 0) {
+                        opContainer.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); padding: 6px 0;">No operators assigned yet.</div>';
+                    } else {
+                        ops.forEach(op => {
+                            const card = document.createElement("div");
+                            card.style = "background: #0f172a; border: 1px solid #0284c7; border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; gap: 14px;";
+                            card.innerHTML = `
+                                <div>
+                                    <div style="font-weight: 700; color: #fff; font-size: 14px;">👑 ${op.name}</div>
+                                    <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">XUID: ${op.xuid}</div>
+                                </div>
+                                <button onclick="removeOperator('${op.name}', '${op.xuid}')" class="btn btn-stop btn-sm" style="padding: 4px 10px; font-size: 11px;" title="Remove Admin">✕ Remove</button>
+                            `;
+                            opContainer.appendChild(card);
+                        });
+                    }
+                }
+
+                // Whitelist UI
+                isWhitelistEnabled = data.allowlist_enabled;
+                const wlBadge = document.getElementById("whitelistStatusBadge");
+                const wlBtn = document.getElementById("whitelistToggleBtn");
+                if (isWhitelistEnabled) {
+                    wlBadge.className = "badge online";
+                    wlBadge.innerText = "ENABLED";
+                    wlBtn.innerText = "Disable Whitelist";
+                } else {
+                    wlBadge.className = "badge offline";
+                    wlBadge.innerText = "DISABLED";
+                    wlBtn.innerText = "Enable Whitelist";
+                }
+
+                const wlContainer = document.getElementById("whitelistList");
+                wlContainer.innerHTML = "";
+                if (data.whitelist.length === 0) {
+                    wlContainer.innerHTML = '<div style="font-size: 13px; color: var(--text-muted);">No players on whitelist.</div>';
+                } else {
+                    data.whitelist.forEach(item => {
+                        const tag = document.createElement("div");
+                        tag.style = "background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; padding: 6px 10px; font-size: 13px; display: flex; align-items: center; gap: 8px;";
+                        tag.innerHTML = `<span>👤 ${item.name}</span><button onclick="removeWhitelist('${item.name}')" style="background: transparent; border: none; color: #ef4444; font-weight: bold; cursor: pointer;">✕</button>`;
+                        wlContainer.appendChild(tag);
+                    });
+                }
+
+                // Populate Cheat Target Dropdown
+                const cheatSel = document.getElementById("cheatTargetPlayer");
+                if (cheatSel) {
+                    const currentVal = cheatSel.value;
+                    let opts = `
+                        <option value="@a">@a (All Players)</option>
+                        <option value="@s">@s (Command Sender)</option>
+                    `;
+                    data.online.forEach(p => {
+                        opts += `<option value="${p}">${p} (Online)</option>`;
+                    });
+                    (data.operators || []).forEach(o => {
+                        if (!data.online.includes(o.name)) {
+                            opts += `<option value="${o.name}">${o.name} (Admin)</option>`;
+                        }
+                    });
+                    cheatSel.innerHTML = opts;
+                    if (currentVal) cheatSel.value = currentVal;
+                    const buffSpan = document.getElementById("buffTargetSpan");
+                    if (buffSpan) buffSpan.innerText = cheatSel.value;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function sendPlayerAction(player, action, extra = {}) {
+            showToast(`Applying ${action} on ${player}...`);
+            try {
+                const res = await fetch("/api/players/action", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ player, action, ...extra })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message || `Success: ${action} applied to ${player}!`, false);
+                } else {
+                    alert("Player Action Error: " + (data.error || `Failed to apply ${action}`));
+                }
+            } catch (err) {
+                alert("Network Error: " + err);
+            }
+            fetchPlayers();
+        }
+
+        async function playerActionDirect(action) {
+            const input = document.getElementById("targetOpName");
+            const name = input.value.trim();
+            if (!name) {
+                alert("Please enter a player gamertag!");
+                return;
+            }
+            await sendPlayerAction(name, action);
+            input.value = "";
+        }
+
+        async function removeOperator(name, xuid) {
+            if (!confirm(`Are you sure you want to remove Admin (OP) from "${name}"?`)) return;
+            await sendPlayerAction(name, "deop", { xuid });
+        }
+
+        async function toggleWhitelist() {
+            const newStatus = !isWhitelistEnabled;
+            showToast((newStatus ? "Enabling" : "Disabling") + " whitelist...");
+            await fetch("/api/whitelist/toggle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ enable: newStatus })
+            });
+            setTimeout(fetchPlayers, 1000);
+        }
+
+        async function addWhitelist() {
+            const name = document.getElementById("newWhitelistPlayer").value.trim();
+            if (!name) return;
+            showToast("Adding " + name + " to whitelist...");
+            await fetch("/api/whitelist/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ player: name })
+            });
+            document.getElementById("newWhitelistPlayer").value = "";
+            setTimeout(fetchPlayers, 1000);
+        }
+
+        async function removeWhitelist(name) {
+            if (!confirm("Remove " + name + " from whitelist?")) return;
+            await fetch("/api/whitelist/remove", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ player: name })
+            });
+            setTimeout(fetchPlayers, 1000);
+        }
+
+        async function handleWorldImport(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById("worldFileInput");
+            if (!fileInput.files.length) {
+                alert("Please select a .zip or .mcworld file to upload!");
+                return;
+            }
+
+            if (!confirm("Are you sure? Importing a new world will stop the server, back up the old world, and load the new one.")) {
+                return;
+            }
+
+            const submitBtn = document.getElementById("importSubmitBtn");
+            submitBtn.disabled = true;
+            submitBtn.innerText = "⏳ Uploading & Installing World (Please wait)...";
+
+            const formData = new FormData();
+            formData.append("world_file", fileInput.files[0]);
+
+            try {
+                const res = await fetch("/api/world/import", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || "World imported successfully!");
+                    fileInput.value = "";
+                } else {
+                    alert("Import Error: " + (data.error || "Failed to import"));
+                }
+            } catch (err) {
+                alert("Upload failed: " + err);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "⬆️ Upload & Load World";
+                setTimeout(fetchStatus, 3000);
+            }
+        }
+
+        async function serverAction(action) {
+            showToast("Server " + action + " initiated...");
+            await fetch("/api/action", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action })
+            });
+            setTimeout(fetchStatus, 1500);
+            setTimeout(fetchLogs, 2000);
+        }
+
+        async function sendCmd() {
+            const input = document.getElementById("cmdInput");
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            input.value = "";
+            await fetch("/api/command", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ command: cmd })
+            });
+            setTimeout(fetchLogs, 500);
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === "Enter") {
+                sendCmd();
+            }
+        }
+
+        function sendQuickCmd(cmd) {
+            document.getElementById("cmdInput").value = cmd;
+            sendCmd();
+            showToast("Sent: " + cmd);
+        }
+
+        function copySnippet(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Copied: " + text);
+            });
+        }
+
+        async function sendBroadcast() {
+            const input = document.getElementById("broadcastMsgInput");
+            const msg = input.value.trim();
+            if (!msg) {
+                alert("Please enter a message to broadcast!");
+                return;
+            }
+            showToast("Sending broadcast announcement...");
+            try {
+                const res = await fetch("/api/broadcast", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast("📢 Broadcast sent to game screen!", false);
+                    input.value = "";
+                } else {
+                    alert("Broadcast Error: " + (data.error || "Failed to broadcast"));
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            }
+        }
+
+        async function setGameRule(rule, value) {
+            showToast(`Setting gamerule ${rule} to ${value}...`);
+            try {
+                const res = await fetch("/api/gamerule", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rule, value })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message || `Gamerule ${rule} updated!`);
+                } else {
+                    alert("Gamerule Error: " + (data.error || "Failed to update"));
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            }
+        }
+
+        function getSelectedCheatTarget() {
+            const sel = document.getElementById("cheatTargetPlayer");
+            const val = sel ? sel.value : "@a";
+            const buffSpan = document.getElementById("buffTargetSpan");
+            if (buffSpan) buffSpan.innerText = val;
+            return val;
+        }
+
+        async function triggerBuff(buff) {
+            const target = getSelectedCheatTarget();
+            showToast(`Applying ${buff} on ${target}...`);
+            try {
+                const res = await fetch("/api/quick-action", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "buff", buff, target })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message || `Buff applied!`);
+                } else {
+                    alert("Buff Error: " + (data.error || "Failed to apply buff"));
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            }
+        }
+
+        async function triggerItem(item) {
+            const target = getSelectedCheatTarget();
+            showToast(`Giving ${item} to ${target}...`);
+            try {
+                const res = await fetch("/api/quick-action", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "item", item, target })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(data.message || `Item given!`);
+                } else {
+                    alert("Item Error: " + (data.error || "Failed to give item"));
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            }
+        }
+
+        async function fetchSettings() {
+            try {
+                const res = await fetch("/api/settings");
+                if (res.ok) {
+                    const s = await res.json();
+                    if (s["server-name"] && document.getElementById("set_server_name")) {
+                        document.getElementById("set_server_name").value = s["server-name"];
+                    }
+                    if (s["view-distance"]) document.getElementById("set_view_distance").value = s["view-distance"];
+                    if (s["max-players"]) document.getElementById("set_max_players").value = s["max-players"];
+                    if (s["difficulty"]) document.getElementById("set_difficulty").value = s["difficulty"];
+                    if (s["allow-cheats"]) document.getElementById("set_allow_cheats").value = s["allow-cheats"];
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function saveSettings() {
+            const serverName = document.getElementById("set_server_name") ? document.getElementById("set_server_name").value : "Bedrock 24/7 Server";
+            const viewDistance = document.getElementById("set_view_distance").value;
+            const maxPlayers = document.getElementById("set_max_players").value;
+            const difficulty = document.getElementById("set_difficulty").value;
+            const allowCheats = document.getElementById("set_allow_cheats").value;
+
+            showToast("Saving settings & restarting server...");
+            await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    "server-name": serverName,
+                    "view-distance": viewDistance,
+                    "max-players": maxPlayers,
+                    "difficulty": difficulty,
+                    "allow-cheats": allowCheats
+                })
+            });
+            await serverAction("restart");
+            fetchSettings();
+        }
+
+        async function changePassword() {
+            const pw = document.getElementById("newPassword").value.trim();
+            if (pw.length < 4) {
+                alert("Password must be at least 4 characters!");
+                return;
+            }
+            const res = await fetch("/api/change-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ new_password: pw })
+            });
+            if (res.ok) {
+                showToast("Password successfully updated!");
+                document.getElementById("newPassword").value = "";
+            } else {
+                alert("Failed to update password");
+            }
+        }
+
+        // Auto intervals
+        fetchStatus();
+        fetchLogs();
+        fetchSettings();
+        setInterval(fetchStatus, 2000);
+        setInterval(fetchLogs, 2000);
+    </script>
+</body>
+</html>

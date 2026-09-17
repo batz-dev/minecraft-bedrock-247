@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+*.log
+data/
+worlds/
+worlds_backup/
+*.mcworld
+*.zip
+secret.key
+.DS_Store
