@@ -1037,18 +1037,25 @@ def ensure_auto_setup():
         run_bash(f'ln -sf "{WORLDS_DIR}" "{bds_dir}/worlds"')
 
     # 6. Start Playit tunnel in screen if not running
-    out_screens, _, _ = run_bash("screen -list 2>/dev/null")
-    if ".playit\t" not in out_screens and ".playit " not in out_screens:
+    run_bash('screen -wipe >/dev/null 2>&1 || true')
+    out_playit, _, _ = run_bash("ps -o pid=,stat= -C playitd 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
+    if not out_playit.strip():
         print("[*] Starting Playit tunnel in screen...")
-        run_bash('screen -wipe >/dev/null 2>&1 || true')
+        run_bash('screen -S playit -X quit 2>/dev/null || true')
         run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" | tee -a /data/playit.log; playitd --secret-path \\"{playit_toml}\\" 2>&1 | tee -a /data/playit.log; sleep 5; done"')
         print("[✓] Playit tunnel active in screen session: playit")
+    else:
+        print("[✓] Playit tunnel is already running.")
 
     # 7. Start Bedrock server in screen if not running
-    if ".bedrock\t" not in out_screens and ".bedrock " not in out_screens:
+    out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
+    if not out_bds.strip():
         print("[*] Starting Bedrock server in screen...")
+        run_bash('screen -S bedrock -X quit 2>/dev/null || true')
         run_bash('screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a /data/bedrock-server.log; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a /data/bedrock-server.log; sleep 5; done"')
         print("[✓] Bedrock server active in screen session: bedrock")
+    else:
+        print("[✓] Bedrock server is already running.")
 
     # 8. Start cron if available
     run_bash("service cron start >/dev/null 2>&1 || true")
@@ -1057,6 +1064,9 @@ def ensure_auto_setup():
 
 if __name__ == "__main__":
     ensure_auto_setup()
-    port = int(os.environ.get("PORT", os.environ.get("PORT_DASHBOARD", 5000)))
+    raw_port = os.environ.get("PORT_DASHBOARD", os.environ.get("PORT", 5000))
+    port = int(raw_port)
+    if port == 8080:  # Port 8080 is reserved for ttyd terminal in Railway
+        port = 5000
     print(f"[*] Starting Web Management Dashboard on port {port}...")
     app.run(host="0.0.0.0", port=port)
