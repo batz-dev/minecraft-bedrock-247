@@ -2,9 +2,9 @@
 
 Automated daily cloud backups for **batz-dev/minecraft-bedrock-247**.
 
-- **Last Backup Time:** 2026-09-17 03:41:45 UTC
+- **Last Backup Time:** 2026-09-17 18:30:03 UTC
 - **Active World File:** [worlds/Bedrock_World_Latest.mcworld](worlds/Bedrock_World_Latest.mcworld)
-- **Archive Size:** 408K
+- **Archive Size:** 5.7M
 
 ### How to Restore
 Download `Bedrock_World_Latest.mcworld` and either:
