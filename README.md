@@ -1,12 +1,12 @@
-# ☁️ Minecraft Bedrock 24/7 World Backups
+# ⛏️ Minecraft Bedrock Cloud Backup (world-backup)
 
-Automated daily cloud backups for **batz-dev/minecraft-bedrock-247**.
+Automated backup of Minecraft Bedrock Dedicated Server.
 
-- **Last Backup Time:** 2026-09-18 18:30:03 UTC
-- **Active World File:** [worlds/Bedrock_World_Latest.mcworld](worlds/Bedrock_World_Latest.mcworld)
-- **Archive Size:** 5.7M
+- **Latest Backup Time (IST):** `2026-10-03 05:25:16 AM IST`
+- **Latest Backup Time (UTC):** `2026-10-02 23:55:16 UTC`
+- **Archive Size:** `0.00 MB`
+- **Trigger:** `manual_web_click`
+- **Engine Version:** `1.26.2.1`
 
-### How to Restore
-Download `Bedrock_World_Latest.mcworld` and either:
-1. Double-click to open in Minecraft Bedrock on Mobile / Windows 10/11.
-2. Upload via Web Dashboard -> **Import / Export World** tab.
+### Restoring:
+You can restore this backup with 1 click from your Web Management Dashboard, or download `worlds/Bedrock_World_Latest.mcworld` to open in Minecraft directly.
