@@ -11,14 +11,15 @@ import urllib.request
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from werkzeug.utils import secure_filename
 
-TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 if not os.path.exists(TEMPLATE_DIR):
     TEMPLATE_DIR = "/data/dashboard/templates"
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB max world upload
 
-DATA_DIR = "/data" if os.path.exists("/data") and os.access("/data", os.W_OK) else os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_DIR = "/data" if os.path.exists("/data") and os.access("/data", os.W_OK) else os.path.join(BASE_DIR, "data")
 DASHBOARD_DIR = os.path.join(DATA_DIR, "dashboard")
 BEDROCK_DATA = os.path.join(DATA_DIR, "bedrock-data")
 PLAYIT_DIR = os.path.join(DATA_DIR, "playit")
@@ -32,6 +33,10 @@ KNOWN_PLAYERS_FILE = os.path.join(BEDROCK_DATA, "known_players.json")
 PASSWORD_FILE = os.path.join(DASHBOARD_DIR, "password.txt")
 SECRET_KEY_FILE = os.path.join(DASHBOARD_DIR, "secret.key")
 SERVER_LOG_FILE = os.path.join(DATA_DIR, "bedrock-server.log")
+VERSION_FILE = os.path.join(DATA_DIR, "version.txt")
+SERVER_CONTROL_SCRIPT = os.path.join(BASE_DIR, "server-control.sh")
+if not os.path.exists(SERVER_CONTROL_SCRIPT):
+    SERVER_CONTROL_SCRIPT = "/data/server-control.sh"
 
 TUNNEL_DOMAIN = "nicely-retread.tun.ply.gg"
 TUNNEL_IP = "147.185.221.213"
@@ -79,14 +84,24 @@ def run_bash(cmd):
 
 
 def get_current_bds_version():
-    try:
-        with open("/data/server-control.sh", "r") as f:
-            for line in f:
-                if line.startswith("BDS_VERSION="):
-                    return line.split("=", 1)[1].strip().strip('"').strip("'")
-    except Exception:
-        pass
-    return "1.26.45.1"
+    for path in [
+        VERSION_FILE,
+        os.path.join(BASE_DIR, "version.txt"),
+        SERVER_CONTROL_SCRIPT,
+        "/data/server-control.sh"
+    ]:
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    content = f.read().strip()
+                    if path.endswith(".txt") and content:
+                        return content
+                    for line in content.splitlines():
+                        if line.startswith("BDS_VERSION="):
+                            return line.split("=", 1)[1].strip().strip('"').strip("'")
+            except Exception:
+                pass
+    return "1.26.2.1"
 
 
 def get_world_size():
@@ -275,14 +290,26 @@ def change_server_version(target_version):
 
         m = re.search(r"bedrock-server-([0-9\.]+)\.zip", url)
         final_v = m.group(1) if m else target_version
-        run_bash(f'sed -i \'s/BDS_VERSION=".*"/BDS_VERSION="{final_v}"/g\' /data/server-control.sh')
+        try:
+            with open(VERSION_FILE, "w") as f:
+                f.write(final_v)
+        except Exception:
+            pass
 
-        run_bash("/data/server-control.sh start")
+        if os.path.exists(SERVER_CONTROL_SCRIPT):
+            run_bash(f'sed -i \'s/BDS_VERSION=".*"/BDS_VERSION="{final_v}"/g\' "{SERVER_CONTROL_SCRIPT}"')
+        if os.path.exists("/data/server-control.sh"):
+            run_bash(f'sed -i \'s/BDS_VERSION=".*"/BDS_VERSION="{final_v}"/g\' /data/server-control.sh')
+
+        # Start BDS in screen
+        run_bash('screen -S bedrock -X quit 2>/dev/null || true')
+        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
         return True, f"Successfully switched to Bedrock version {final_v}! Server is now running.", final_v
     except Exception as e:
         if os.path.exists(tmp_zip):
             os.remove(tmp_zip)
-        run_bash("/data/server-control.sh start")
+        run_bash('screen -S bedrock -X quit 2>/dev/null || true')
+        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
         return False, f"Failed to switch version: {str(e)}", ""
 
 
@@ -406,13 +433,23 @@ def api_action():
     action = data.get("action", "")
 
     if action == "start":
-        run_bash("/data/server-control.sh start")
+        run_bash(f'bash "{SERVER_CONTROL_SCRIPT}" start >/dev/null 2>&1 || true')
+        out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
+        if not out_bds.strip():
+            run_bash('screen -S bedrock -X quit 2>/dev/null || true')
+            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
         return jsonify({"status": "started"})
     elif action == "stop":
-        run_bash("/data/server-control.sh stop")
+        run_bash('screen -S bedrock -p 0 -X stuff "stop$(printf \'\\r\')"')
+        run_bash('sleep 2; screen -S bedrock -X quit 2>/dev/null; pkill -9 -x bedrock_server 2>/dev/null || true')
         return jsonify({"status": "stopped"})
     elif action == "restart":
-        run_bash("/data/server-control.sh restart")
+        run_bash('screen -S bedrock -p 0 -X stuff "stop$(printf \'\\r\')"')
+        run_bash('sleep 2; screen -S bedrock -X quit 2>/dev/null; pkill -9 -x bedrock_server 2>/dev/null || true')
+        run_bash(f'bash "{SERVER_CONTROL_SCRIPT}" start >/dev/null 2>&1 || true')
+        out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
+        if not out_bds.strip():
+            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
         return jsonify({"status": "restarted"})
     else:
         return jsonify({"error": "Invalid action"}), 400
@@ -1036,13 +1073,21 @@ def ensure_auto_setup():
         run_bash(f'ln -sf "{PERMISSIONS_FILE}" "{bds_dir}/permissions.json"')
         run_bash(f'ln -sf "{WORLDS_DIR}" "{bds_dir}/worlds"')
 
+    # 5.5 Ensure server-control.sh is available in /data
+    if os.path.exists(os.path.join(BASE_DIR, "server-control.sh")):
+        try:
+            shutil.copy2(os.path.join(BASE_DIR, "server-control.sh"), "/data/server-control.sh")
+            os.chmod("/data/server-control.sh", 0o755)
+        except Exception:
+            pass
+
     # 6. Start Playit tunnel in screen if not running
     run_bash('screen -wipe >/dev/null 2>&1 || true')
     out_playit, _, _ = run_bash("ps -o pid=,stat= -C playitd 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
     if not out_playit.strip():
         print("[*] Starting Playit tunnel in screen...")
         run_bash('screen -S playit -X quit 2>/dev/null || true')
-        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" | tee -a /data/playit.log; playitd --secret-path \\"{playit_toml}\\" 2>&1 | tee -a /data/playit.log; sleep 5; done"')
+        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" | tee -a /data/playit.log; playitd --secret_path \\"{playit_toml}\\" 2>&1 | tee -a /data/playit.log; sleep 5; done"')
         print("[✓] Playit tunnel active in screen session: playit")
     else:
         print("[✓] Playit tunnel is already running.")

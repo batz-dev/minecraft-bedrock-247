@@ -91,7 +91,7 @@ start_server() {
         screen -dmS playit bash -c "
             while true; do
                 echo \"[\$(date)] Starting Playit tunnel...\" | tee -a '$PLAYIT_LOG';
-                playitd --secret-path /data/playit/playit.toml 2>&1 | tee -a '$PLAYIT_LOG';
+                playitd --secret_path /data/playit/playit.toml 2>&1 | tee -a '$PLAYIT_LOG';
                 EXIT_CODE=\$?;
                 echo \"[\$(date)] Playit stopped with exit code \$EXIT_CODE. Restarting in 5s...\" | tee -a '$PLAYIT_LOG';
                 sleep 5;
