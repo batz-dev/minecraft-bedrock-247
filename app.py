@@ -2,10 +2,12 @@ import os
 import re
 import io
 import json
+import time
 import shutil
 import zipfile
 import secrets
 import datetime
+import threading
 import subprocess
 import urllib.request
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
@@ -19,7 +21,15 @@ if not os.path.exists(TEMPLATE_DIR):
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB max world upload
 
-DATA_DIR = "/data" if os.path.exists("/data") and os.access("/data", os.W_OK) else os.path.join(BASE_DIR, "data")
+# Primary persistent directory resolution
+DATA_DIR = os.environ.get("DATA_DIR", "/data")
+if not (os.path.exists(DATA_DIR) and os.access(DATA_DIR, os.W_OK)):
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+    except Exception:
+        DATA_DIR = os.path.join(BASE_DIR, "data")
+        os.makedirs(DATA_DIR, exist_ok=True)
+
 DASHBOARD_DIR = os.path.join(DATA_DIR, "dashboard")
 BEDROCK_DATA = os.path.join(DATA_DIR, "bedrock-data")
 PLAYIT_DIR = os.path.join(DATA_DIR, "playit")
@@ -33,10 +43,22 @@ KNOWN_PLAYERS_FILE = os.path.join(BEDROCK_DATA, "known_players.json")
 PASSWORD_FILE = os.path.join(DASHBOARD_DIR, "password.txt")
 SECRET_KEY_FILE = os.path.join(DASHBOARD_DIR, "secret.key")
 SERVER_LOG_FILE = os.path.join(DATA_DIR, "bedrock-server.log")
+PLAYIT_LOG_FILE = os.path.join(DATA_DIR, "playit.log")
 VERSION_FILE = os.path.join(DATA_DIR, "version.txt")
 SERVER_CONTROL_SCRIPT = os.path.join(BASE_DIR, "server-control.sh")
 if not os.path.exists(SERVER_CONTROL_SCRIPT):
-    SERVER_CONTROL_SCRIPT = "/data/server-control.sh"
+    SERVER_CONTROL_SCRIPT = os.path.join(DATA_DIR, "server-control.sh")
+
+# Global version switch background task tracking
+VERSION_SWITCH_STATE = {
+    "status": "idle",  # "idle" | "running" | "completed" | "error"
+    "step": "",
+    "progress": 0,
+    "message": "",
+    "version": "",
+    "error": ""
+}
+VERSION_SWITCH_LOCK = threading.Lock()
 
 TUNNEL_DOMAIN = "nicely-retread.tun.ply.gg"
 TUNNEL_IP = "147.185.221.213"
@@ -122,9 +144,8 @@ def get_world_size():
 
 def get_online_players():
     run_bash('screen -S bedrock -p 0 -X stuff "list$(printf \'\\r\')"')
-    import time
     time.sleep(0.3)
-    out, _, _ = run_bash("tail -n 40 /data/bedrock-server.log 2>/dev/null")
+    out, _, _ = run_bash(f"tail -n 40 '{SERVER_LOG_FILE}' 2>/dev/null")
     players = []
     max_p = 10
     lines = out.split("\n")
@@ -244,52 +265,142 @@ def resolve_version_url(version_input):
     return None
 
 
-def change_server_version(target_version):
-    url = resolve_version_url(target_version)
-    if not url:
-        return False, f"Version '{target_version}' could not be resolved. Please verify the version number.", ""
-
+def change_server_version_worker(target_version):
+    global VERSION_SWITCH_STATE
+    bds_dir = "/opt/bedrock-server"
     tmp_zip = f"/tmp/bds_dl_{secrets.token_hex(4)}.zip"
-    try:
-        run_bash(f'curl -fsSL -A "Mozilla/5.0" -o "{tmp_zip}" "{url}"')
-        if not os.path.exists(tmp_zip) or not zipfile.is_zipfile(tmp_zip):
-            return False, f"Failed to download valid server archive for {target_version}.", ""
 
-        # Stop BDS cleanly
+    def set_progress(status, step, progress, message="", version="", error=""):
+        with VERSION_SWITCH_LOCK:
+            VERSION_SWITCH_STATE["status"] = status
+            VERSION_SWITCH_STATE["step"] = step
+            VERSION_SWITCH_STATE["progress"] = progress
+            VERSION_SWITCH_STATE["message"] = message
+            VERSION_SWITCH_STATE["version"] = version
+            VERSION_SWITCH_STATE["error"] = error
+
+    try:
+        set_progress("running", "🔍 Resolving Version", 5, f"Resolving download link for v{target_version}...")
+        url = resolve_version_url(target_version)
+        if not url:
+            set_progress("error", "Version Not Found", 0, "", "", f"Version '{target_version}' could not be resolved. Please verify the version number.")
+            return
+
+        m = re.search(r"bedrock-server-([0-9\.]+)\.zip", url)
+        final_v = m.group(1) if m else target_version
+
+        set_progress("running", "⬇️ Downloading BDS Engine", 10, f"Connecting to official download server for v{final_v}...")
+
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=120) as resp, open(tmp_zip, "wb") as f_out:
+            total_size = int(resp.headers.get("Content-Length", 0))
+            downloaded = 0
+            last_pct = -1
+            while True:
+                chunk = resp.read(256 * 1024)
+                if not chunk:
+                    break
+                f_out.write(chunk)
+                downloaded += len(chunk)
+                if total_size > 0:
+                    pct = int((downloaded / total_size) * 100)
+                    if pct != last_pct and (pct % 2 == 0 or pct == 100):
+                        last_pct = pct
+                        mb_dl = downloaded / (1024 * 1024)
+                        mb_tot = total_size / (1024 * 1024)
+                        mapped_pct = 10 + int(pct * 0.5)  # 10% -> 60%
+                        set_progress("running", "⬇️ Downloading BDS Engine", mapped_pct, f"Downloading v{final_v}: {mb_dl:.1f} MB / {mb_tot:.1f} MB ({pct}%)")
+
+        if not os.path.exists(tmp_zip) or not zipfile.is_zipfile(tmp_zip):
+            set_progress("error", "Download Failed", 0, "", "", f"Failed to download a valid server archive for {final_v}.")
+            if os.path.exists(tmp_zip):
+                os.remove(tmp_zip)
+            return
+
+        set_progress("running", "🛑 Stopping Previous Server", 65, "Safely shutting down running Bedrock process...")
         run_bash('screen -S bedrock -p 0 -X stuff "stop$(printf \'\\r\')"')
-        import time
-        for _ in range(8):
+        for _ in range(5):
             time.sleep(1)
             out, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
             if not out.strip():
                 break
-        run_bash('screen -S bedrock -X quit 2>/dev/null')
-        run_bash('pkill -9 -x bedrock_server 2>/dev/null')
+        run_bash('screen -S bedrock -X quit 2>/dev/null || true')
+        run_bash('pkill -9 -x bedrock_server 2>/dev/null || true')
 
-        # Wipe old server engine
-        bds_dir = "/opt/bedrock-server"
+        set_progress("running", "📦 Extracting BDS Files", 75, f"Extracting clean BDS v{final_v} binary...")
         shutil.rmtree(bds_dir, ignore_errors=True)
         os.makedirs(bds_dir, exist_ok=True)
-
         with zipfile.ZipFile(tmp_zip, "r") as zf:
             zf.extractall(bds_dir)
-        os.remove(tmp_zip)
+        if os.path.exists(tmp_zip):
+            os.remove(tmp_zip)
 
         bds_bin = os.path.join(bds_dir, "bedrock_server")
         if os.path.exists(bds_bin):
             os.chmod(bds_bin, 0o755)
 
+        set_progress("running", "🔗 Preserving World & Settings", 85, "Symlinking worlds, permissions, allowlist, and server properties...")
+
+        # Ensure default persistent files exist in BEDROCK_DATA
+        if not os.path.exists(PROPERTIES_FILE):
+            if os.path.exists(os.path.join(bds_dir, "server.properties")):
+                shutil.copy2(os.path.join(bds_dir, "server.properties"), PROPERTIES_FILE)
+            elif os.path.exists(os.path.join(BASE_DIR, "config", "server.properties")):
+                shutil.copy2(os.path.join(BASE_DIR, "config", "server.properties"), PROPERTIES_FILE)
+            else:
+                default_props = (
+                    "server-name=Bedrock 24/7 Server\n"
+                    "gamemode=survival\n"
+                    "force-gamemode=false\n"
+                    "difficulty=easy\n"
+                    "allow-cheats=true\n"
+                    "max-players=10\n"
+                    "online-mode=false\n"
+                    "white-list=false\n"
+                    "server-port=19132\n"
+                    "server-portv6=19133\n"
+                    "view-distance=6\n"
+                    "tick-distance=4\n"
+                    "player-idle-timeout=30\n"
+                    "max-threads=4\n"
+                    "level-name=Bedrock level\n"
+                    "level-seed=\n"
+                    "default-player-permission-level=member\n"
+                    "texturepack-required=false\n"
+                    "content-log-file-enabled=false\n"
+                    "compression-threshold=1\n"
+                    "server-authoritative-movement=server-auth\n"
+                    "player-movement-score-threshold=20\n"
+                    "player-movement-distance-threshold=0.3\n"
+                    "player-movement-duration-threshold-in-ms=500\n"
+                )
+                with open(PROPERTIES_FILE, "w") as f:
+                    f.write(default_props)
+
+        if not os.path.exists(ALLOWLIST_FILE):
+            if os.path.exists(os.path.join(bds_dir, "allowlist.json")):
+                shutil.copy2(os.path.join(bds_dir, "allowlist.json"), ALLOWLIST_FILE)
+            else:
+                with open(ALLOWLIST_FILE, "w") as f:
+                    f.write("[]\n")
+
+        if not os.path.exists(PERMISSIONS_FILE):
+            if os.path.exists(os.path.join(bds_dir, "permissions.json")):
+                shutil.copy2(os.path.join(bds_dir, "permissions.json"), PERMISSIONS_FILE)
+            else:
+                with open(PERMISSIONS_FILE, "w") as f:
+                    f.write("[]\n")
+
+        os.makedirs(WORLDS_DIR, exist_ok=True)
+
         # Relink persistent files
-        data_dir = "/data/bedrock-data"
         run_bash(f'rm -f "{bds_dir}/server.properties" "{bds_dir}/allowlist.json" "{bds_dir}/permissions.json"')
         run_bash(f'rm -rf "{bds_dir}/worlds"')
-        run_bash(f'ln -sf "{data_dir}/server.properties" "{bds_dir}/server.properties"')
-        run_bash(f'ln -sf "{data_dir}/allowlist.json" "{bds_dir}/allowlist.json"')
-        run_bash(f'ln -sf "{data_dir}/permissions.json" "{bds_dir}/permissions.json"')
-        run_bash(f'ln -sf "{data_dir}/worlds" "{bds_dir}/worlds"')
+        run_bash(f'ln -sf "{PROPERTIES_FILE}" "{bds_dir}/server.properties"')
+        run_bash(f'ln -sf "{ALLOWLIST_FILE}" "{bds_dir}/allowlist.json"')
+        run_bash(f'ln -sf "{PERMISSIONS_FILE}" "{bds_dir}/permissions.json"')
+        run_bash(f'ln -sf "{WORLDS_DIR}" "{bds_dir}/worlds"')
 
-        m = re.search(r"bedrock-server-([0-9\.]+)\.zip", url)
-        final_v = m.group(1) if m else target_version
         try:
             with open(VERSION_FILE, "w") as f:
                 f.write(final_v)
@@ -298,19 +409,40 @@ def change_server_version(target_version):
 
         if os.path.exists(SERVER_CONTROL_SCRIPT):
             run_bash(f'sed -i \'s/BDS_VERSION=".*"/BDS_VERSION="{final_v}"/g\' "{SERVER_CONTROL_SCRIPT}"')
-        if os.path.exists("/data/server-control.sh"):
-            run_bash(f'sed -i \'s/BDS_VERSION=".*"/BDS_VERSION="{final_v}"/g\' /data/server-control.sh')
+        if os.path.exists(os.path.join(DATA_DIR, "server-control.sh")):
+            run_bash(f'sed -i \'s/BDS_VERSION=".*"/BDS_VERSION="{final_v}"/g\' "{os.path.join(DATA_DIR, "server-control.sh")}"')
 
-        # Start BDS in screen
+        set_progress("running", "🚀 Launching Bedrock Server", 92, f"Starting Bedrock Server v{final_v} in screen...")
         run_bash('screen -S bedrock -X quit 2>/dev/null || true')
-        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
-        return True, f"Successfully switched to Bedrock version {final_v}! Server is now running.", final_v
+        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a \\"{SERVER_LOG_FILE}\\"; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
+
+        # Verify it started and didn't crash
+        time.sleep(2)
+        out_check, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
+        if not out_check.strip():
+            log_snippet, _, _ = run_bash(f"tail -n 10 '{SERVER_LOG_FILE}' 2>/dev/null")
+            set_progress("error", "Startup Failed", 0, "", "", f"Bedrock Server crashed on startup. Recent log: {log_snippet.strip()}")
+            return
+
+        set_progress("completed", "✅ Update Complete!", 100, f"Successfully switched to Bedrock version {final_v}! Server is active.", final_v)
     except Exception as e:
         if os.path.exists(tmp_zip):
-            os.remove(tmp_zip)
+            try:
+                os.remove(tmp_zip)
+            except Exception:
+                pass
         run_bash('screen -S bedrock -X quit 2>/dev/null || true')
-        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
-        return False, f"Failed to switch version: {str(e)}", ""
+        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a \\"{SERVER_LOG_FILE}\\"; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
+        set_progress("error", "Update Failed", 0, "", "", str(e))
+
+
+def change_server_version(target_version):
+    change_server_version_worker(target_version)
+    with VERSION_SWITCH_LOCK:
+        if VERSION_SWITCH_STATE.get("status") == "completed":
+            return True, VERSION_SWITCH_STATE.get("message", ""), VERSION_SWITCH_STATE.get("version", target_version)
+        else:
+            return False, VERSION_SWITCH_STATE.get("error") or VERSION_SWITCH_STATE.get("message", "Switch failed"), ""
 
 
 # ==================== AUTH ROUTES ====================
@@ -374,7 +506,7 @@ def api_status():
     out_playit, _, _ = run_bash("ps -o pid=,stat= -C playitd 2>/dev/null | awk '$2 !~ /Z/ {print $1}' | head -n 1")
     playit_running = bool(out_playit.strip())
 
-    disk_out, _, _ = run_bash("df -h /data | awk 'NR==2 {print $3 \" / \" $2 \" (\" $5 \")\"}'")
+    disk_out, _, _ = run_bash(f"df -h '{DATA_DIR}' | awk 'NR==2 {{print $3 \" / \" $2 \" (\" $5 \")\"}}'")
     players, max_p = get_online_players()
 
     return jsonify({
@@ -404,7 +536,7 @@ def api_logs():
     if not is_authenticated():
         return jsonify({"error": "Unauthorized"}), 401
 
-    out, _, _ = run_bash("tail -n 120 /data/bedrock-server.log 2>/dev/null")
+    out, _, _ = run_bash(f"tail -n 120 '{SERVER_LOG_FILE}' 2>/dev/null")
     lines = out.split("\n")
     return jsonify({"logs": lines[-100:]})
 
@@ -477,6 +609,14 @@ def api_version_info():
     })
 
 
+@app.route("/api/version/progress")
+def api_version_progress():
+    if not is_authenticated():
+        return jsonify({"error": "Unauthorized"}), 401
+    with VERSION_SWITCH_LOCK:
+        return jsonify(dict(VERSION_SWITCH_STATE))
+
+
 @app.route("/api/version/switch", methods=["POST"])
 def api_version_switch():
     if not is_authenticated():
@@ -490,18 +630,17 @@ def api_version_switch():
     if not re.match(r"^[0-9\.\-]+$", target_version):
         return jsonify({"error": "Invalid version format. Example: 1.26.2 or 1.26.45.1"}), 400
 
-    success, msg, final_v = change_server_version(target_version)
-    if success:
-        return jsonify({
-            "status": "success",
-            "message": msg,
-            "version": final_v,
-            "tunnel_domain": TUNNEL_DOMAIN,
-            "tunnel_ip": TUNNEL_IP,
-            "tunnel_port": TUNNEL_PORT
-        })
-    else:
-        return jsonify({"error": msg}), 400
+    with VERSION_SWITCH_LOCK:
+        if VERSION_SWITCH_STATE.get("status") == "running":
+            return jsonify({"error": "A version update is already in progress. Please wait."}), 409
+
+    t = threading.Thread(target=change_server_version_worker, args=(target_version,), daemon=True)
+    t.start()
+    return jsonify({
+        "status": "started",
+        "message": f"Version switch to v{target_version} started.",
+        "target_version": target_version
+    })
 
 
 # ==================== PLAYER MANAGEMENT API ====================
@@ -1073,13 +1212,16 @@ def ensure_auto_setup():
         run_bash(f'ln -sf "{PERMISSIONS_FILE}" "{bds_dir}/permissions.json"')
         run_bash(f'ln -sf "{WORLDS_DIR}" "{bds_dir}/worlds"')
 
-    # 5.5 Ensure server-control.sh is available in /data
-    if os.path.exists(os.path.join(BASE_DIR, "server-control.sh")):
-        try:
-            shutil.copy2(os.path.join(BASE_DIR, "server-control.sh"), "/data/server-control.sh")
-            os.chmod("/data/server-control.sh", 0o755)
-        except Exception:
-            pass
+    # 5.5 Ensure server-control.sh and watchdog are available in DATA_DIR
+    for script_name in ["server-control.sh", "server-watchdog.sh"]:
+        src_script = os.path.join(BASE_DIR, script_name)
+        dst_script = os.path.join(DATA_DIR, script_name)
+        if os.path.exists(src_script) and src_script != dst_script:
+            try:
+                shutil.copy2(src_script, dst_script)
+                os.chmod(dst_script, 0o755)
+            except Exception:
+                pass
 
     # 6. Start Playit tunnel in screen if not running
     run_bash('screen -wipe >/dev/null 2>&1 || true')
@@ -1087,7 +1229,7 @@ def ensure_auto_setup():
     if not out_playit.strip():
         print("[*] Starting Playit tunnel in screen...")
         run_bash('screen -S playit -X quit 2>/dev/null || true')
-        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" | tee -a /data/playit.log; playitd --secret_path \\"{playit_toml}\\" 2>&1 | tee -a /data/playit.log; sleep 5; done"')
+        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" | tee -a \\"{PLAYIT_LOG_FILE}\\"; playitd --secret_path \\"{playit_toml}\\" 2>&1 | tee -a \\"{PLAYIT_LOG_FILE}\\"; sleep 5; done"')
         print("[✓] Playit tunnel active in screen session: playit")
     else:
         print("[✓] Playit tunnel is already running.")
@@ -1097,7 +1239,7 @@ def ensure_auto_setup():
     if not out_bds.strip():
         print("[*] Starting Bedrock server in screen...")
         run_bash('screen -S bedrock -X quit 2>/dev/null || true')
-        run_bash('screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a /data/bedrock-server.log; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a /data/bedrock-server.log; sleep 5; done"')
+        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a \\"{SERVER_LOG_FILE}\\"; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
         print("[✓] Bedrock server active in screen session: bedrock")
     else:
         print("[✓] Bedrock server is already running.")

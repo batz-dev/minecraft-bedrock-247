@@ -972,24 +972,10 @@
             btn.disabled = true;
             btn.innerText = "⏳ Processing Version Switch...";
             progBox.style.display = "block";
-            progressBar.style.width = "20%";
-            stepText.innerText = "⏳ Step 1/3: Connecting to Mojang servers...";
-            subText.innerText = "Resolving download URL and starting 80MB archive transfer...";
-
-            let pct = 20;
-            const progressTimer = setInterval(() => {
-                if (pct < 85) {
-                    pct += 5;
-                    progressBar.style.width = pct + "%";
-                    if (pct >= 45 && pct < 70) {
-                        stepText.innerText = "📦 Step 2/3: Extracting BDS engine files...";
-                        subText.innerText = "Preserving world saves, inventories, and server properties...";
-                    } else if (pct >= 70) {
-                        stepText.innerText = "🚀 Step 3/3: Initializing Bedrock Dedicated Server...";
-                        subText.innerText = "Launching background screen process and linking tunnel...";
-                    }
-                }
-            }, 800);
+            progressBar.style.width = "10%";
+            progressBar.style.background = "linear-gradient(90deg, #38bdf8, #34d399)";
+            stepText.innerText = "🔍 Resolving Version...";
+            subText.innerText = "Contacting Mojang Bedrock download servers...";
 
             try {
                 const res = await fetch("/api/version/switch", {
@@ -997,44 +983,75 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ version: ver })
                 });
-                clearInterval(progressTimer);
-                const data = await res.json();
-                if (res.ok) {
-                    progressBar.style.width = "100%";
-                    progressBar.style.background = "#10b981";
-                    stepText.innerText = "✅ Server Successfully Updated to v" + (data.version || ver) + "!";
-                    subText.innerText = data.message || "Server engine is live and accepting player connections.";
-                    input.value = "";
-
-                    // Poll status rapidly to show online badge
-                    let pollCount = 0;
-                    const pollInterval = setInterval(async () => {
-                        await fetchStatus();
-                        pollCount++;
-                        if (pollCount > 6) clearInterval(pollInterval);
-                    }, 1500);
-                } else {
+                const initData = await res.json();
+                if (!res.ok) {
                     progressBar.style.width = "100%";
                     progressBar.style.background = "#ef4444";
                     stepText.innerText = "❌ Version Switch Failed";
-                    subText.innerText = data.error || "Failed to switch version";
-                    alert("Version Switch Error: " + (data.error || "Failed to switch version"));
+                    subText.innerText = initData.error || "Failed to start version switch";
+                    alert("Version Switch Error: " + (initData.error || "Failed to start version switch"));
+                    btn.disabled = false;
+                    btn.innerText = "🚀 Download, Replace & Start Server";
+                    return;
                 }
+
+                // Poll real-time progress from /api/version/progress
+                const pollProgress = setInterval(async () => {
+                    try {
+                        const pRes = await fetch("/api/version/progress");
+                        if (!pRes.ok) return;
+                        const pData = await pRes.json();
+
+                        if (pData.status === "running") {
+                            progressBar.style.width = Math.max(10, pData.progress) + "%";
+                            stepText.innerText = pData.step || "⏳ Processing Version Switch...";
+                            subText.innerText = pData.message || "Please wait while server downloads and configures...";
+                        } else if (pData.status === "completed") {
+                            clearInterval(pollProgress);
+                            progressBar.style.width = "100%";
+                            progressBar.style.background = "#10b981";
+                            stepText.innerText = "✅ " + (pData.step || "Server Successfully Updated!");
+                            subText.innerText = pData.message || ("Bedrock Server v" + (pData.version || ver) + " is live!");
+                            input.value = "";
+                            btn.disabled = false;
+                            btn.innerText = "🚀 Download, Replace & Start Server";
+
+                            // Rapidly update status
+                            let pollCount = 0;
+                            const pollInterval = setInterval(async () => {
+                                await fetchStatus();
+                                pollCount++;
+                                if (pollCount > 6) clearInterval(pollInterval);
+                            }, 1500);
+
+                            setTimeout(() => {
+                                progBox.style.display = "none";
+                                progressBar.style.width = "10%";
+                                progressBar.style.background = "linear-gradient(90deg, #38bdf8, #34d399)";
+                            }, 8000);
+                        } else if (pData.status === "error") {
+                            clearInterval(pollProgress);
+                            progressBar.style.width = "100%";
+                            progressBar.style.background = "#ef4444";
+                            stepText.innerText = "❌ " + (pData.step || "Version Switch Failed");
+                            subText.innerText = pData.error || pData.message || "An error occurred during version switch";
+                            alert("Version Switch Error:\n" + (pData.error || pData.message || "Failed to switch version"));
+                            btn.disabled = false;
+                            btn.innerText = "🚀 Download, Replace & Start Server";
+                        }
+                    } catch (pErr) {
+                        console.error("Progress poll error:", pErr);
+                    }
+                }, 400);
+
             } catch (err) {
-                clearInterval(progressTimer);
                 progressBar.style.width = "100%";
                 progressBar.style.background = "#ef4444";
                 stepText.innerText = "❌ Connection Error";
                 subText.innerText = String(err);
                 alert("Error: " + err);
-            } finally {
                 btn.disabled = false;
                 btn.innerText = "🚀 Download, Replace & Start Server";
-                setTimeout(() => {
-                    progBox.style.display = "none";
-                    progressBar.style.width = "20%";
-                    progressBar.style.background = "linear-gradient(90deg, #38bdf8, #34d399)";
-                }, 8000);
             }
         }
 

@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
+ENV DATA_DIR=/data
 
 # Install core dependencies (screen, curl, unzip, python3, cron, network utilities)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,6 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Pre-create data directories so path resolution never fails
+RUN mkdir -p /data /data/bedrock-data /data/dashboard /data/playit /opt/bedrock-server
 
 WORKDIR /app
 
