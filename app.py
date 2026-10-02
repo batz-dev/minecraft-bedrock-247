@@ -65,6 +65,29 @@ TUNNEL_IP = "147.185.221.213"
 TUNNEL_PORT = 17373
 PLAYIT_SECRET = "3f951dcf83b320ccdf736109ca0c51d67287516c996a1d67427b97a32aa6f26a"
 
+# GitHub automated cloud backup settings
+def get_github_token():
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if token:
+        return token
+    out, _, code = run_bash("git remote get-url origin 2>/dev/null")
+    if code == 0 and "://" in out:
+        m = re.search(r"https://[^:]+:([^@]+)@github\.com", out)
+        if m:
+            return m.group(1).strip()
+    token_file = os.path.join(DATA_DIR, "github_token.txt")
+    if os.path.exists(token_file):
+        try:
+            with open(token_file, "r") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return ""
+
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "batz-dev/minecraft-bedrock-247")
+GITHUB_BACKUP_BRANCH = os.environ.get("GITHUB_BACKUP_BRANCH", "world-backup")
+LAST_BACKUP_INFO_FILE = os.path.join(DATA_DIR, "last_backup_info.json")
+
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(DASHBOARD_DIR, exist_ok=True)
 os.makedirs(BEDROCK_DATA, exist_ok=True)
@@ -917,6 +940,291 @@ def api_world_import():
         return jsonify({"error": f"Import failed: {str(e)}"}), 500
 
 
+
+# ==================== GITHUB CLOUD BACKUP & RESTORE ====================
+
+def run_github_backup(trigger="manual"):
+    """
+    Safely creates a world archive and pushes all configs & world data
+    to the GitHub repository on branch 'world-backup'.
+    """
+    gh_token = get_github_token()
+    if not gh_token or not GITHUB_REPO:
+        return False, "GitHub Token or Repository not configured", {}
+
+    staging_dir = f"/tmp/gh_backup_{secrets.token_hex(4)}"
+    world_archive = os.path.join("/tmp", f"Bedrock_World_{secrets.token_hex(4)}.mcworld")
+    try:
+        # 1. Instruct Bedrock server to hold saves so memory buffers write to disk
+        run_bash('screen -S bedrock -p 0 -X stuff "save hold$(printf \'\\r\')"')
+        time.sleep(1)
+
+        # 2. Package world into .mcworld
+        total_bytes = 0
+        with zipfile.ZipFile(world_archive, "w", zipfile.ZIP_DEFLATED) as zf:
+            if os.path.exists(ACTIVE_WORLD_DIR):
+                for dirpath, dirnames, filenames in os.walk(ACTIVE_WORLD_DIR):
+                    for f in filenames:
+                        fp = os.path.join(dirpath, f)
+                        if not os.path.islink(fp):
+                            arcname = os.path.relpath(fp, ACTIVE_WORLD_DIR)
+                            zf.write(fp, arcname)
+                            total_bytes += os.path.getsize(fp)
+
+        # 3. Resume Bedrock server save
+        run_bash('screen -S bedrock -p 0 -X stuff "save resume$(printf \'\\r\')"')
+
+        # 4. Clone or init world-backup branch in staging_dir
+        os.makedirs(staging_dir, exist_ok=True)
+        clone_url = f"https://batz-dev:{gh_token}@github.com/{GITHUB_REPO}.git"
+        cmd_clone = f"git clone --depth 1 --branch {GITHUB_BACKUP_BRANCH} '{clone_url}' '{staging_dir}' 2>&1"
+        out_clone, err_clone, code_clone = run_bash(cmd_clone)
+        if code_clone != 0:
+            run_bash(f"cd '{staging_dir}' && git init && git checkout -b {GITHUB_BACKUP_BRANCH} && git remote add origin '{clone_url}'")
+
+        # 5. Populate staging files
+        os.makedirs(os.path.join(staging_dir, "worlds"), exist_ok=True)
+        os.makedirs(os.path.join(staging_dir, "configs"), exist_ok=True)
+
+        target_mcworld = os.path.join(staging_dir, "worlds", "Bedrock_World_Latest.mcworld")
+        shutil.copy2(world_archive, target_mcworld)
+        if os.path.exists(world_archive):
+            os.remove(world_archive)
+
+        for cfg_file in [PROPERTIES_FILE, PERMISSIONS_FILE, ALLOWLIST_FILE, KNOWN_PLAYERS_FILE]:
+            if os.path.exists(cfg_file):
+                shutil.copy2(cfg_file, os.path.join(staging_dir, "configs", os.path.basename(cfg_file)))
+
+        arc_size_mb = os.path.getsize(target_mcworld) / (1024 * 1024)
+        size_str = f"{arc_size_mb:.2f} MB"
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        now_ist = now_utc + datetime.timedelta(hours=5, minutes=30)
+        time_utc_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+        time_ist_str = now_ist.strftime("%Y-%m-%d %I:%M:%S %p IST")
+
+        backup_meta = {
+            "backup_time": time_utc_str,
+            "backup_time_ist": time_ist_str,
+            "world_name": "Bedrock level",
+            "archive_name": "Bedrock_World_Latest.mcworld",
+            "size": size_str,
+            "status": "success",
+            "trigger": trigger,
+            "version": get_current_bds_version()
+        }
+
+        with open(os.path.join(staging_dir, "backup_info.json"), "w") as f:
+            json.dump(backup_meta, f, indent=2)
+
+        readme_content = (
+            f"# ⛏️ Minecraft Bedrock Cloud Backup ({GITHUB_BACKUP_BRANCH})\n\n"
+            f"Automated backup of Minecraft Bedrock Dedicated Server.\n\n"
+            f"- **Latest Backup Time (IST):** `{time_ist_str}`\n"
+            f"- **Latest Backup Time (UTC):** `{time_utc_str}`\n"
+            f"- **Archive Size:** `{size_str}`\n"
+            f"- **Trigger:** `{trigger}`\n"
+            f"- **Engine Version:** `{backup_meta['version']}`\n\n"
+            f"### Restoring:\n"
+            f"You can restore this backup with 1 click from your Web Management Dashboard, or download `worlds/Bedrock_World_Latest.mcworld` to open in Minecraft directly.\n"
+        )
+        with open(os.path.join(staging_dir, "README.md"), "w") as f:
+            f.write(readme_content)
+
+        # 6. Git commit & push
+        push_cmds = (
+            f"cd '{staging_dir}' && "
+            f"git config user.name 'Minecraft Backup Bot' && "
+            f"git config user.email 'bot@minecraft-bedrock-247' && "
+            f"git add -A && "
+            f"git commit -m 'Automated Backup: {time_ist_str} [{trigger}]' && "
+            f"git push -u origin {GITHUB_BACKUP_BRANCH} --force"
+        )
+        out_p, err_p, code_p = run_bash(push_cmds)
+
+        shutil.rmtree(staging_dir, ignore_errors=True)
+
+        if code_p != 0:
+            return False, f"Git push failed: {err_p or out_p}", {}
+
+        try:
+            with open(LAST_BACKUP_INFO_FILE, "w") as f:
+                json.dump(backup_meta, f, indent=2)
+        except Exception:
+            pass
+
+        return True, f"Successfully backed up world and configs to GitHub at {time_ist_str}!", backup_meta
+
+    except Exception as e:
+        if os.path.exists(world_archive):
+            try:
+                os.remove(world_archive)
+            except Exception:
+                pass
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        run_bash('screen -S bedrock -p 0 -X stuff "save resume$(printf \'\\r\')"')
+        return False, f"Backup error: {str(e)}", {}
+
+
+def run_github_restore():
+    """
+    Fetches the latest backup from the GitHub 'world-backup' branch,
+    safely replaces active world and configs, and restarts the server.
+    """
+    gh_token = get_github_token()
+    if not gh_token or not GITHUB_REPO:
+        return False, "GitHub Token or Repository not configured"
+
+    staging_dir = f"/tmp/gh_restore_{secrets.token_hex(4)}"
+    try:
+        os.makedirs(staging_dir, exist_ok=True)
+        clone_url = f"https://batz-dev:{gh_token}@github.com/{GITHUB_REPO}.git"
+        cmd_clone = f"git clone --depth 1 --branch {GITHUB_BACKUP_BRANCH} '{clone_url}' '{staging_dir}' 2>&1"
+        out_clone, err_clone, code_clone = run_bash(cmd_clone)
+        if code_clone != 0:
+            shutil.rmtree(staging_dir, ignore_errors=True)
+            return False, f"Failed to fetch world-backup branch from GitHub: {err_clone or out_clone}"
+
+        mcworld_file = os.path.join(staging_dir, "worlds", "Bedrock_World_Latest.mcworld")
+        if not os.path.exists(mcworld_file) or not zipfile.is_zipfile(mcworld_file):
+            shutil.rmtree(staging_dir, ignore_errors=True)
+            return False, "Valid Bedrock_World_Latest.mcworld not found in GitHub backup branch."
+
+        # Stop Bedrock cleanly
+        run_bash('screen -S bedrock -p 0 -X stuff "stop$(printf \'\\r\')"')
+        for _ in range(6):
+            time.sleep(1)
+            out, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
+            if not out.strip():
+                break
+        run_bash('screen -S bedrock -X quit 2>/dev/null || true')
+        run_bash('pkill -9 -x bedrock_server 2>/dev/null || true')
+
+        # Safety snapshot of current world
+        if os.path.exists(ACTIVE_WORLD_DIR):
+            safety_backup = os.path.join(BACKUP_DIR, f"pre_restore_{int(time.time())}")
+            try:
+                shutil.copytree(ACTIVE_WORLD_DIR, safety_backup)
+            except Exception:
+                pass
+
+        # Extract mcworld
+        shutil.rmtree(ACTIVE_WORLD_DIR, ignore_errors=True)
+        os.makedirs(ACTIVE_WORLD_DIR, exist_ok=True)
+        with zipfile.ZipFile(mcworld_file, "r") as zf:
+            zf.extractall(ACTIVE_WORLD_DIR)
+
+        # Restore configs
+        backup_cfg_dir = os.path.join(staging_dir, "configs")
+        if os.path.exists(backup_cfg_dir):
+            for f in os.listdir(backup_cfg_dir):
+                src = os.path.join(backup_cfg_dir, f)
+                dst = os.path.join(BEDROCK_DATA, f)
+                if os.path.isfile(src):
+                    shutil.copy2(src, dst)
+
+        # Relink symlinks
+        bds_dir = "/opt/bedrock-server"
+        if os.path.exists(bds_dir):
+            run_bash(f'rm -f "{bds_dir}/server.properties" "{bds_dir}/allowlist.json" "{bds_dir}/permissions.json"')
+            run_bash(f'rm -rf "{bds_dir}/worlds"')
+            run_bash(f'ln -sf "{PROPERTIES_FILE}" "{bds_dir}/server.properties"')
+            run_bash(f'ln -sf "{ALLOWLIST_FILE}" "{bds_dir}/allowlist.json"')
+            run_bash(f'ln -sf "{PERMISSIONS_FILE}" "{bds_dir}/permissions.json"')
+            run_bash(f'ln -sf "{WORLDS_DIR}" "{bds_dir}/worlds"')
+
+        shutil.rmtree(staging_dir, ignore_errors=True)
+
+        # Start server in screen
+        run_bash('screen -S bedrock -X quit 2>/dev/null || true')
+        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a \\"{SERVER_LOG_FILE}\\"; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
+
+        return True, "World and configurations successfully restored from GitHub! Server is restarting with the restored world."
+
+    except Exception as e:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        run_bash('screen -S bedrock -X quit 2>/dev/null || true')
+        run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a \\"{SERVER_LOG_FILE}\\"; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
+        return False, f"Restore failed: {str(e)}"
+
+
+def backup_scheduler_worker():
+    last_run_date = ""
+    while True:
+        try:
+            # India Standard Time (UTC + 5:30)
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            now_ist = now_utc + datetime.timedelta(hours=5, minutes=30)
+            today_str = now_ist.strftime("%Y-%m-%d")
+
+            # Check if midnight (00:00 - 00:05) IST
+            if now_ist.hour == 0 and now_ist.minute < 5 and last_run_date != today_str:
+                last_run_date = today_str
+                print(f"[*] Midnight 12:00 AM IST reached ({today_str}). Running automated GitHub backup...")
+                success, msg, meta = run_github_backup(trigger="daily_midnight_ist")
+                print(f"[*] Automated Midnight Backup Result: {success} - {msg}")
+        except Exception as e:
+            print(f"[!] Midnight Backup Scheduler Error: {e}")
+        time.sleep(30)
+
+
+@app.route("/api/github/backup/info")
+def api_github_backup_info():
+    if not is_authenticated():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = None
+    if os.path.exists(LAST_BACKUP_INFO_FILE):
+        try:
+            with open(LAST_BACKUP_INFO_FILE, "r") as f:
+                data = json.load(f)
+        except Exception:
+            pass
+
+    if not data:
+        try:
+            url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BACKUP_BRANCH}/backup_info.json"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                data = json.loads(resp.read().decode())
+        except Exception:
+            data = {
+                "backup_time": "No backup found",
+                "backup_time_ist": "No backup found",
+                "size": "N/A",
+                "status": "idle"
+            }
+
+    return jsonify({
+        "repo": GITHUB_REPO,
+        "branch": GITHUB_BACKUP_BRANCH,
+        "last_backup": data
+    })
+
+
+@app.route("/api/github/backup", methods=["POST"])
+def api_github_backup_now():
+    if not is_authenticated():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    success, msg, meta = run_github_backup(trigger="manual_web_click")
+    if success:
+        return jsonify({"status": "success", "message": msg, "info": meta})
+    else:
+        return jsonify({"error": msg}), 500
+
+
+@app.route("/api/github/restore", methods=["POST"])
+def api_github_restore_now():
+    if not is_authenticated():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    success, msg = run_github_restore()
+    if success:
+        return jsonify({"status": "success", "message": msg})
+    else:
+        return jsonify({"error": msg}), 500
+
+
 # ==================== ADVANCED IN-GAME MANAGEMENT API ====================
 
 @app.route("/api/broadcast", methods=["POST"])
@@ -1246,6 +1554,10 @@ def ensure_auto_setup():
 
     # 8. Start cron if available
     run_bash("service cron start >/dev/null 2>&1 || true")
+
+    # 9. Start automated midnight backup scheduler
+    threading.Thread(target=backup_scheduler_worker, daemon=True).start()
+    print("[✓] Automated 12:00 AM IST GitHub Cloud Backup scheduler initialized.")
     print("[✓] Turnkey Setup Complete: Server & Tunnel are Live!")
 
 

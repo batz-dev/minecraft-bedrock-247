@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     ca-certificates \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-create data directories so path resolution never fails
