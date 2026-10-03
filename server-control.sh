@@ -90,10 +90,10 @@ start_server() {
         echo "[*] Starting Playit.gg tunnel daemon in screen..."
         screen -dmS playit bash -c "
             while true; do
-                echo \"[\$(date)] Starting Playit tunnel...\" | tee -a '$PLAYIT_LOG';
-                playitd --secret_path /data/playit/playit.toml 2>&1 | tee -a '$PLAYIT_LOG';
+                echo \"[\$(date)] Starting Playit tunnel...\" >> '$PLAYIT_LOG' 2>&1;
+                playitd --secret_path /data/playit/playit.toml >> '$PLAYIT_LOG' 2>&1;
                 EXIT_CODE=\$?;
-                echo \"[\$(date)] Playit stopped with exit code \$EXIT_CODE. Restarting in 5s...\" | tee -a '$PLAYIT_LOG';
+                echo \"[\$(date)] Playit stopped with exit code \$EXIT_CODE. Restarting in 5s...\" >> '$PLAYIT_LOG' 2>&1;
                 sleep 5;
             done
         "

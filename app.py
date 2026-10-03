@@ -576,20 +576,24 @@ def api_logs():
     if not is_authenticated():
         return jsonify({"error": "Unauthorized"}), 401
 
-    if not os.path.exists(SERVER_LOG_FILE):
+    source = request.args.get("source", "bedrock")
+    target_file = PLAYIT_LOG_FILE if source == "playit" else SERVER_LOG_FILE
+
+    if not os.path.exists(target_file):
         return jsonify({"logs": []})
 
     try:
-        with open(SERVER_LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
+        with open(target_file, "r", encoding="utf-8", errors="ignore") as f:
             lines = [l.rstrip("\r\n") for l in f.readlines()[-250:]]
 
-        # Filter out repetitive player list queries and raw 'list' commands
-        filtered = [
-            l for l in lines 
-            if not re.search(r"There are \d+/\d+ players online:", l) 
-            and l.strip() != "list"
-        ]
-        return jsonify({"logs": filtered[-100:]})
+        if source == "bedrock":
+            filtered = [
+                l for l in lines 
+                if not re.search(r"There are \d+/\d+ players online:", l) 
+                and l.strip() != "list"
+            ]
+            return jsonify({"logs": filtered[-100:]})
+        return jsonify({"logs": lines[-100:]})
     except Exception as e:
         return jsonify({"logs": [f"Error reading logs: {e}"]})
 
@@ -622,7 +626,7 @@ def api_action():
         out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
         if not out_bds.strip():
             run_bash('screen -S bedrock -X quit 2>/dev/null || true')
-            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
+            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" >> \\"{SERVER_LOG_FILE}\\" 2>&1; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 >> \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
         return jsonify({"status": "started"})
     elif action == "stop":
         run_bash('screen -S bedrock -p 0 -X stuff "stop$(printf \'\\r\')"')
@@ -634,8 +638,14 @@ def api_action():
         run_bash(f'bash "{SERVER_CONTROL_SCRIPT}" start >/dev/null 2>&1 || true')
         out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
         if not out_bds.strip():
-            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
+            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" >> \\"{SERVER_LOG_FILE}\\" 2>&1; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 >> \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
         return jsonify({"status": "restarted"})
+    elif action == "restart_playit":
+        run_bash('screen -S playit -X quit 2>/dev/null || true')
+        run_bash('pkill -9 -x playitd 2>/dev/null || true')
+        playit_toml = os.path.join(PLAYIT_DIR, "playit.toml")
+        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; playitd --secret_path \\"{playit_toml}\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; sleep 5; done"')
+        return jsonify({"status": "playit_restarted"})
     else:
         return jsonify({"error": "Invalid action"}), 400
 
@@ -1683,14 +1693,14 @@ def ensure_auto_setup():
             "difficulty=normal\n"
             "allow-cheats=true\n"
             "max-players=10\n"
-            "online-mode=true\n"
+            "online-mode=false\n"
             "white-list=false\n"
             "server-port=19132\n"
             "server-portv6=19133\n"
             "view-distance=6\n"
             "tick-distance=4\n"
             "player-idle-timeout=30\n"
-            "max-threads=4\n"
+            "max-threads=2\n"
             "level-name=Bedrock level\n"
             "level-seed=\n"
             "default-player-permission-level=member\n"
@@ -1749,7 +1759,7 @@ def ensure_auto_setup():
     if not out_playit.strip():
         print("[*] Starting Playit tunnel in screen...")
         run_bash('screen -S playit -X quit 2>/dev/null || true')
-        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" | tee -a \\"{PLAYIT_LOG_FILE}\\"; playitd --secret_path \\"{playit_toml}\\" 2>&1 | tee -a \\"{PLAYIT_LOG_FILE}\\"; sleep 5; done"')
+        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; playitd --secret_path \\"{playit_toml}\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; sleep 5; done"')
         print("[✓] Playit tunnel active in screen session: playit")
     else:
         print("[✓] Playit tunnel is already running.")
