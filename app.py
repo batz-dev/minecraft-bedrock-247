@@ -522,8 +522,8 @@ def api_status():
     cpu_pct = 0.0
     uptime = "Stopped"
 
-    # Fetch BDS metrics in a single lightweight command
-    out_bds, _, code = run_bash("ps -C bedrock_server -o pid=,rss=,%cpu=,etime= 2>/dev/null | awk '$1 {print $1, $2, $3, $4; exit}'")
+    # Fetch BDS metrics in a single lightweight command (skipping zombie processes)
+    out_bds, _, code = run_bash("ps -C bedrock_server -o pid=,stat=,rss=,%cpu=,etime= 2>/dev/null | awk '$2 !~ /Z/ {print $1, $3, $4, $5; exit}'")
     parts = out_bds.strip().split()
     if code == 0 and len(parts) >= 4:
         is_running = True
@@ -538,7 +538,7 @@ def api_status():
             cpu_pct = 0.0
         uptime = parts[3]
 
-    out_playit, _, _ = run_bash("ps -C playitd -o pid= 2>/dev/null")
+    out_playit, _, _ = run_bash("ps -C playitd -o pid=,stat= 2>/dev/null | awk '$2 !~ /Z/ {print $1; exit}'")
     playit_running = bool(out_playit.strip())
 
     try:
