@@ -1328,10 +1328,12 @@ def ping_hud_loop():
     global PING_HUD_ACTIVE
     while PING_HUD_ACTIVE:
         try:
-            run_bash('screen -S bedrock -p 0 -X stuff "titleraw @a actionbar {\\"rawtext\\":[{\\"text\\":\\"§b📶 Network: Online (~25ms) §f| §a⚡ TPS: 20 §f| §eBedrock 24/7\\"}]}$(printf \'\\r\')"')
+            players, _ = get_online_players()
+            if players:
+                run_bash('screen -S bedrock -p 0 -X stuff "titleraw @a actionbar {\\"rawtext\\":[{\\"text\\":\\"§b📶 Network: Online (~25ms) §f| §a⚡ TPS: 20 §f| §eBedrock 24/7\\"}]}$(printf \'\\r\')"')
         except Exception:
             pass
-        time.sleep(2.5)
+        time.sleep(3)
 
 
 @app.route("/api/gamerule", methods=["POST"])
