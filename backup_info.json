@@ -1,10 +1,20 @@
 {
-  "backup_time": "2026-10-03 00:11:31 UTC",
-  "backup_time_ist": "2026-10-03 05:41:31 AM IST",
+  "backup_time": "2026-10-03 00:11:58 UTC",
+  "backup_time_ist": "2026-10-03 05:41:58 AM IST",
   "world_name": "Bedrock level",
   "archive_name": "Bedrock_World_Latest.mcworld",
-  "size": "0.00 MB",
+  "size": "5.70 MB",
   "status": "success",
-  "trigger": "manual_web_click",
-  "version": "1.26.2.1"
+  "trigger": "full_environment_backup",
+  "version": "1.26.2.1",
+  "included_components": [
+    "worlds/Bedrock_World_Latest.mcworld (All structures, chunks, inventory)",
+    "configs/server.properties (Game settings, gamemode, difficulty)",
+    "configs/permissions.json (Admin/OP permissions)",
+    "configs/allowlist.json (Whitelist)",
+    "configs/known_players.json (Player Gamertags & XUIDs)",
+    "configs/version.txt (Selected Bedrock version)",
+    "dashboard/password.txt (Web manager password)",
+    "tunnel/playit.toml (Playit tunnel permanent credentials)"
+  ]
 }
