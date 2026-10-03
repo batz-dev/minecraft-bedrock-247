@@ -1374,23 +1374,23 @@ def api_quick_action():
     if action_type == "buff":
         buff = data.get("buff", "").strip().lower()
         if buff == "night_vision":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} night_vision 99999 1 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} night_vision 99999 1 true$(printf \'\\r\')"')
             run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§b§l👁️ Permanent Night Vision Active!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted permanent Night Vision to '{target}'!"
         elif buff == "speed":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} speed 99999 2 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} speed 99999 2 true$(printf \'\\r\')"')
             run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§e§l⚡ Super Speed II Active!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted Speed II buff to '{target}'!"
         elif buff == "saturation":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} saturation 99999 1 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} saturation 99999 1 true$(printf \'\\r\')"')
             run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§6§l🍖 Infinite Saturation (Never Hungry)!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted Infinite Hunger/Saturation to '{target}'!"
         elif buff == "strength":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} strength 99999 100 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} strength 99999 100 true$(printf \'\\r\')"')
             run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§c§l⚔️ SUPER STRENGTH ACTIVATED! (1-Hit Kill)\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted Super Strength (1-Hit Kill) to '{target}'!"
         elif buff == "regeneration":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} regeneration 99999 5 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} regeneration 99999 5 true$(printf \'\\r\')"')
             run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§d§l💖 Rapid Regeneration Active!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted Rapid Regeneration to '{target}'!"
         elif buff == "clear":
