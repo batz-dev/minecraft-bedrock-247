@@ -1320,22 +1320,6 @@ def api_broadcast():
 
     return jsonify({"status": "success", "message": f"Broadcast sent: '{msg}'"})
 
-
-PING_HUD_ACTIVE = False
-PING_HUD_LOCK = threading.Lock()
-
-def ping_hud_loop():
-    global PING_HUD_ACTIVE
-    while PING_HUD_ACTIVE:
-        try:
-            players, _ = get_online_players()
-            if players:
-                run_bash('screen -S bedrock -p 0 -X stuff "titleraw @a actionbar {\\"rawtext\\":[{\\"text\\":\\"§b📶 Network: Online (~25ms) §f| §a⚡ TPS: 20 §f| §eBedrock 24/7\\"}]}$(printf \'\\r\')"')
-        except Exception:
-            pass
-        time.sleep(3)
-
-
 @app.route("/api/gamerule", methods=["POST"])
 def api_gamerule():
     if not is_authenticated():
@@ -1344,19 +1328,6 @@ def api_gamerule():
     data = request.get_json() or {}
     rule = data.get("rule", "").strip().lower()
     value = str(data.get("value", "")).strip().lower()
-
-    if rule == "hud_ping":
-        global PING_HUD_ACTIVE
-        with PING_HUD_LOCK:
-            if value == "true":
-                if not PING_HUD_ACTIVE:
-                    PING_HUD_ACTIVE = True
-                    threading.Thread(target=ping_hud_loop, daemon=True).start()
-                return jsonify({"status": "success", "message": "On-Screen Ping & Network HUD ENABLED!"})
-            else:
-                PING_HUD_ACTIVE = False
-                run_bash('screen -S bedrock -p 0 -X stuff "titleraw @a actionbar {\\"rawtext\\":[{\\"text\\":\\"\\"}]}$(printf \'\\r\')"')
-                return jsonify({"status": "success", "message": "On-Screen Ping & Network HUD DISABLED!"})
 
     allowed_rules = {
         "keepinventory": "Keep Inventory on Death",
