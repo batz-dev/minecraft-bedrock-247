@@ -985,15 +985,28 @@ def run_github_backup(trigger="manual"):
         # 5. Populate staging files
         os.makedirs(os.path.join(staging_dir, "worlds"), exist_ok=True)
         os.makedirs(os.path.join(staging_dir, "configs"), exist_ok=True)
+        os.makedirs(os.path.join(staging_dir, "dashboard"), exist_ok=True)
+        os.makedirs(os.path.join(staging_dir, "tunnel"), exist_ok=True)
 
         target_mcworld = os.path.join(staging_dir, "worlds", "Bedrock_World_Latest.mcworld")
         shutil.copy2(world_archive, target_mcworld)
         if os.path.exists(world_archive):
             os.remove(world_archive)
 
-        for cfg_file in [PROPERTIES_FILE, PERMISSIONS_FILE, ALLOWLIST_FILE, KNOWN_PLAYERS_FILE]:
+        # Server configs & version
+        for cfg_file in [PROPERTIES_FILE, PERMISSIONS_FILE, ALLOWLIST_FILE, KNOWN_PLAYERS_FILE, VERSION_FILE]:
             if os.path.exists(cfg_file):
                 shutil.copy2(cfg_file, os.path.join(staging_dir, "configs", os.path.basename(cfg_file)))
+
+        # Web Dashboard settings (password, session key)
+        for dash_file in [PASSWORD_FILE, SECRET_KEY_FILE]:
+            if os.path.exists(dash_file):
+                shutil.copy2(dash_file, os.path.join(staging_dir, "dashboard", os.path.basename(dash_file)))
+
+        # Permanent Tunnel configs
+        playit_cfg = os.path.join(PLAYIT_DIR, "playit.toml")
+        if os.path.exists(playit_cfg):
+            shutil.copy2(playit_cfg, os.path.join(staging_dir, "tunnel", "playit.toml"))
 
         arc_size_mb = os.path.getsize(target_mcworld) / (1024 * 1024)
         size_str = f"{arc_size_mb:.2f} MB"
@@ -1113,12 +1126,33 @@ def run_github_restore():
         with zipfile.ZipFile(mcworld_file, "r") as zf:
             zf.extractall(ACTIVE_WORLD_DIR)
 
-        # Restore configs
+        # Restore server configs & version
         backup_cfg_dir = os.path.join(staging_dir, "configs")
         if os.path.exists(backup_cfg_dir):
             for f in os.listdir(backup_cfg_dir):
                 src = os.path.join(backup_cfg_dir, f)
-                dst = os.path.join(BEDROCK_DATA, f)
+                if f == "version.txt":
+                    shutil.copy2(src, VERSION_FILE)
+                else:
+                    dst = os.path.join(BEDROCK_DATA, f)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, dst)
+
+        # Restore dashboard settings (password & secret key)
+        backup_dash_dir = os.path.join(staging_dir, "dashboard")
+        if os.path.exists(backup_dash_dir):
+            for f in os.listdir(backup_dash_dir):
+                src = os.path.join(backup_dash_dir, f)
+                dst = os.path.join(DASHBOARD_DIR, f)
+                if os.path.isfile(src):
+                    shutil.copy2(src, dst)
+
+        # Restore tunnel configs
+        backup_tunnel_dir = os.path.join(staging_dir, "tunnel")
+        if os.path.exists(backup_tunnel_dir):
+            for f in os.listdir(backup_tunnel_dir):
+                src = os.path.join(backup_tunnel_dir, f)
+                dst = os.path.join(PLAYIT_DIR, f)
                 if os.path.isfile(src):
                     shutil.copy2(src, dst)
 
