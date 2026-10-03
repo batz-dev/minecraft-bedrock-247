@@ -1,6 +1,7 @@
 import os
 import re
 import io
+import gc
 import json
 import time
 import shutil
@@ -166,30 +167,41 @@ def get_world_size():
 
 
 def get_online_players():
-    run_bash('screen -S bedrock -p 0 -X stuff "list$(printf \'\\r\')"')
-    time.sleep(0.3)
-    out, _, _ = run_bash(f"tail -n 40 '{SERVER_LOG_FILE}' 2>/dev/null")
-    players = []
+    players = set()
     max_p = 10
-    lines = out.split("\n")
-    for i in range(len(lines) - 1, -1, -1):
-        line = lines[i]
-        m = re.search(r"There are (\d+)/(\d+) players online:(.*)", line)
-        if m:
-            count = int(m.group(1))
-            max_p = int(m.group(2))
-            same_line = m.group(3).strip()
-            if same_line:
-                players = [p.strip() for p in same_line.split(",") if p.strip()]
-            elif count > 0:
-                for j in range(i + 1, min(i + 1 + count + 2, len(lines))):
-                    cand = lines[j].strip()
-                    if cand and not cand.startswith("[") and not cand.startswith("list"):
-                        for p in cand.split(","):
-                            if p.strip() and p.strip() not in players:
-                                players.append(p.strip())
-            break
-    return players, max_p
+
+    if os.path.exists(PROPERTIES_FILE):
+        try:
+            with open(PROPERTIES_FILE, "r") as f:
+                for line in f:
+                    if line.startswith("max-players="):
+                        max_p = int(line.split("=", 1)[1].strip())
+                        break
+        except Exception:
+            pass
+
+    if not os.path.exists(SERVER_LOG_FILE):
+        return [], max_p
+
+    try:
+        with open(SERVER_LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()[-300:]
+
+        for line in lines:
+            if "Server started." in line or "Quit: server stop" in line:
+                players.clear()
+            elif "Player connected:" in line:
+                m = re.search(r"Player connected:\s*([^,]+)", line)
+                if m:
+                    players.add(m.group(1).strip())
+            elif "Player disconnected:" in line:
+                m = re.search(r"Player disconnected:\s*([^,]+)", line)
+                if m:
+                    players.discard(m.group(1).strip())
+    except Exception:
+        pass
+
+    return sorted(list(players)), max_p
 
 
 def get_xuid_map():
@@ -498,38 +510,65 @@ def index():
 
 # ==================== METRICS & STATUS API ====================
 
+def get_process_pid(comm_name):
+    try:
+        for p in os.listdir("/proc"):
+            if p.isdigit():
+                try:
+                    with open(f"/proc/{p}/comm", "r") as f:
+                        if comm_name in f.read().strip():
+                            return p
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return None
+
+
 @app.route("/api/status")
 def api_status():
     if not is_authenticated():
         return jsonify({"error": "Unauthorized"}), 401
 
-    out, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}' | head -n 1")
-    bds_pid = out.strip()
+    bds_pid = get_process_pid("bedrock_server")
     is_running = bool(bds_pid)
     mem_mb = 0
     cpu_pct = 0.0
     uptime = "0s"
 
     if is_running:
-        out_mem, _, _ = run_bash(f"ps -o rss= -p {bds_pid} 2>/dev/null")
         try:
-            mem_mb = int(out_mem.strip()) // 1024
+            with open(f"/proc/{bds_pid}/status", "r") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        mem_mb = int(line.split()[1]) // 1024
+                        break
         except Exception:
             mem_mb = 0
 
-        out_cpu, _, _ = run_bash(f"ps -o %cpu= -p {bds_pid} 2>/dev/null")
         try:
-            cpu_pct = float(out_cpu.strip() or "0.0")
+            with open(f"/proc/{bds_pid}/stat", "r") as f:
+                stat_parts = f.read().split()
+                starttime = int(stat_parts[21])
+                with open("/proc/uptime", "r") as uf:
+                    uptime_sec = float(uf.read().split()[0])
+                hz = 100
+                running_sec = max(0, int(uptime_sec - (starttime / hz)))
+                hours = running_sec // 3600
+                mins = (running_sec % 3600) // 60
+                secs = running_sec % 60
+                uptime = f"{hours}h {mins}m {secs}s" if hours > 0 else f"{mins}m {secs}s"
         except Exception:
-            cpu_pct = 0.0
+            uptime = "Running"
 
-        out_uptime, _, _ = run_bash(f"ps -o etime= -p {bds_pid} 2>/dev/null")
-        uptime = out_uptime.strip() or "Running"
+    playit_running = bool(get_process_pid("playitd"))
 
-    out_playit, _, _ = run_bash("ps -o pid=,stat= -C playitd 2>/dev/null | awk '$2 !~ /Z/ {print $1}' | head -n 1")
-    playit_running = bool(out_playit.strip())
+    try:
+        usage = shutil.disk_usage(DATA_DIR)
+        disk_out = f"{usage.used / (1024**3):.1f}G / {usage.total / (1024**3):.1f}G ({int(usage.used / usage.total * 100)}%)"
+    except Exception:
+        disk_out = "N/A"
 
-    disk_out, _, _ = run_bash(f"df -h '{DATA_DIR}' | awk 'NR==2 {{print $3 \" / \" $2 \" (\" $5 \")\"}}'")
     players, max_p = get_online_players()
 
     return jsonify({
@@ -559,9 +598,22 @@ def api_logs():
     if not is_authenticated():
         return jsonify({"error": "Unauthorized"}), 401
 
-    out, _, _ = run_bash(f"tail -n 120 '{SERVER_LOG_FILE}' 2>/dev/null")
-    lines = out.split("\n")
-    return jsonify({"logs": lines[-100:]})
+    if not os.path.exists(SERVER_LOG_FILE):
+        return jsonify({"logs": []})
+
+    try:
+        with open(SERVER_LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
+            lines = [l.rstrip("\r\n") for l in f.readlines()[-250:]]
+
+        # Filter out repetitive player list queries and raw 'list' commands
+        filtered = [
+            l for l in lines 
+            if not re.search(r"There are \d+/\d+ players online:", l) 
+            and l.strip() != "list"
+        ]
+        return jsonify({"logs": filtered[-100:]})
+    except Exception as e:
+        return jsonify({"logs": [f"Error reading logs: {e}"]})
 
 
 @app.route("/api/command", methods=["POST"])
