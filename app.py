@@ -1693,7 +1693,7 @@ def ensure_auto_setup():
             "difficulty=normal\n"
             "allow-cheats=true\n"
             "max-players=10\n"
-            "online-mode=false\n"
+            "online-mode=true\n"
             "white-list=false\n"
             "server-port=19132\n"
             "server-portv6=19133\n"
