@@ -1592,7 +1592,10 @@ def api_settings():
         allowed_keys = [
             "view-distance", "tick-distance", "max-players", "server-name",
             "difficulty", "allow-cheats", "gamemode", "force-gamemode",
-            "online-mode", "allow-list", "default-player-permission-level"
+            "online-mode", "allow-list", "default-player-permission-level",
+            "server-authoritative-movement", "server-authoritative-block-breaking",
+            "player-position-acceptance-threshold", "compression-threshold",
+            "compression-algorithm", "max-threads"
         ]
         updates = {}
         for k, v in data.items():
