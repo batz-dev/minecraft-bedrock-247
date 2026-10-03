@@ -2,10 +2,10 @@
 
 Automated backup of Minecraft Bedrock Dedicated Server.
 
-- **Latest Backup Time (IST):** `2026-10-03 05:41:31 AM IST`
-- **Latest Backup Time (UTC):** `2026-10-03 00:11:31 UTC`
-- **Archive Size:** `0.00 MB`
-- **Trigger:** `manual_web_click`
+- **Latest Backup Time (IST):** `2026-10-03 05:48:51 AM IST`
+- **Latest Backup Time (UTC):** `2026-10-03 00:18:51 UTC`
+- **Archive Size:** `5.64 MB`
+- **Trigger:** `settings_sync`
 - **Engine Version:** `1.26.2.1`
 
 ### Restoring:
