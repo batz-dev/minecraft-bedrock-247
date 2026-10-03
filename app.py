@@ -510,58 +510,36 @@ def index():
 
 # ==================== METRICS & STATUS API ====================
 
-def get_process_pid(comm_name):
-    try:
-        for p in os.listdir("/proc"):
-            if p.isdigit():
-                try:
-                    with open(f"/proc/{p}/comm", "r") as f:
-                        if comm_name in f.read().strip():
-                            return p
-                except Exception:
-                    continue
-    except Exception:
-        pass
-    return None
-
 
 @app.route("/api/status")
 def api_status():
     if not is_authenticated():
         return jsonify({"error": "Unauthorized"}), 401
 
-    bds_pid = get_process_pid("bedrock_server")
-    is_running = bool(bds_pid)
+    is_running = False
+    bds_pid = None
     mem_mb = 0
     cpu_pct = 0.0
-    uptime = "0s"
+    uptime = "Stopped"
 
-    if is_running:
+    # Fetch BDS metrics in a single lightweight command
+    out_bds, _, code = run_bash("ps -C bedrock_server -o pid=,rss=,%cpu=,etime= 2>/dev/null | awk '$1 {print $1, $2, $3, $4; exit}'")
+    parts = out_bds.strip().split()
+    if code == 0 and len(parts) >= 4:
+        is_running = True
+        bds_pid = parts[0]
         try:
-            with open(f"/proc/{bds_pid}/status", "r") as f:
-                for line in f:
-                    if line.startswith("VmRSS:"):
-                        mem_mb = int(line.split()[1]) // 1024
-                        break
+            mem_mb = int(parts[1]) // 1024
         except Exception:
             mem_mb = 0
-
         try:
-            with open(f"/proc/{bds_pid}/stat", "r") as f:
-                stat_parts = f.read().split()
-                starttime = int(stat_parts[21])
-                with open("/proc/uptime", "r") as uf:
-                    uptime_sec = float(uf.read().split()[0])
-                hz = 100
-                running_sec = max(0, int(uptime_sec - (starttime / hz)))
-                hours = running_sec // 3600
-                mins = (running_sec % 3600) // 60
-                secs = running_sec % 60
-                uptime = f"{hours}h {mins}m {secs}s" if hours > 0 else f"{mins}m {secs}s"
+            cpu_pct = float(parts[2])
         except Exception:
-            uptime = "Running"
+            cpu_pct = 0.0
+        uptime = parts[3]
 
-    playit_running = bool(get_process_pid("playitd"))
+    out_playit, _, _ = run_bash("ps -C playitd -o pid= 2>/dev/null")
+    playit_running = bool(out_playit.strip())
 
     try:
         usage = shutil.disk_usage(DATA_DIR)
