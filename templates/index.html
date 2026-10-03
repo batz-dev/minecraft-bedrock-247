@@ -796,38 +796,55 @@
         <!-- ================= TAB 6: SETTINGS ================= -->
         <div id="tab-settings" class="hidden">
             <div class="card" style="margin-bottom: 20px;">
-                <div class="card-title" style="font-size: 15px; margin-bottom: 12px;">⚙️ Server Configuration (server.properties)</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <div class="card-title" style="font-size: 15px; margin: 0;">⚙️ Server Configuration (server.properties)</div>
+                    <div id="settings_save_badge" style="font-size: 12px; font-weight: 600; color: #10b981; display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <span>⚡</span> Auto-Save Active (Har change turant save hota hai)
+                    </div>
+                </div>
                 <div class="settings-grid">
                     <div class="setting-item" style="grid-column: 1 / -1;">
                         <span class="setting-label">Server Display Name (MOTD in Minecraft List)</span>
-                        <input type="text" id="set_server_name" class="setting-input" value="Bedrock 24/7 Server" placeholder="My Epic Bedrock Server">
+                        <input type="text" id="set_server_name" class="setting-input" value="Bedrock 24/7 Server" placeholder="My Epic Bedrock Server" onchange="autoSaveSetting('server-name', this.value)">
                     </div>
                     <div class="setting-item">
-                        <span class="setting-label">Render Distance (chunks)</span>
-                        <input type="number" id="set_view_distance" class="setting-input" value="6" min="5" max="32">
-                    </div>
-                    <div class="setting-item">
-                        <span class="setting-label">Max Players</span>
-                        <input type="number" id="set_max_players" class="setting-input" value="10" min="1" max="100">
+                        <span class="setting-label">Game Mode</span>
+                        <select id="set_gamemode" class="setting-input" onchange="autoSaveSetting('gamemode', this.value)">
+                            <option value="survival">Survival</option>
+                            <option value="creative">Creative</option>
+                            <option value="adventure">Adventure</option>
+                        </select>
                     </div>
                     <div class="setting-item">
                         <span class="setting-label">Allow Cheats</span>
-                        <select id="set_allow_cheats" class="setting-input">
+                        <select id="set_allow_cheats" class="setting-input" onchange="autoSaveSetting('allow-cheats', this.value)">
                             <option value="true">true (Admin commands allowed)</option>
                             <option value="false">false (Pure Survival)</option>
                         </select>
                     </div>
                     <div class="setting-item">
                         <span class="setting-label">Difficulty</span>
-                        <select id="set_difficulty" class="setting-input">
+                        <select id="set_difficulty" class="setting-input" onchange="autoSaveSetting('difficulty', this.value)">
                             <option value="peaceful">Peaceful</option>
                             <option value="easy">Easy</option>
                             <option value="normal">Normal</option>
                             <option value="hard">Hard</option>
                         </select>
                     </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Max Players</span>
+                        <input type="number" id="set_max_players" class="setting-input" value="10" min="1" max="100" onchange="autoSaveSetting('max-players', this.value)">
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Render Distance (chunks)</span>
+                        <input type="number" id="set_view_distance" class="setting-input" value="6" min="5" max="32" onchange="autoSaveSetting('view-distance', this.value)">
+                    </div>
                 </div>
-                <button class="btn btn-secondary" onclick="saveSettings()">💾 Save & Restart Server</button>
+                <div style="display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="saveSettings(true)">💾 Save All & Restart Server</button>
+                    <button class="btn btn-sm btn-outline" style="border: 1px solid #475569; background: transparent; color: #cbd5e1; border-radius: 6px; padding: 7px 12px; cursor: pointer;" onclick="fetchSettings()">🔄 Refresh Values</button>
+                    <span style="font-size: 12px; color: #94a3b8;">*Settings disk aur GitHub backup me turant save hoti hain. Live game me apply karne ke liye 'Restart Server' dabayein.</span>
+                </div>
             </div>
 
             <div class="card">
@@ -933,6 +950,7 @@
 
             if (tabId === 'tab-players' || tabId === 'tab-cheats') fetchPlayers();
             if (tabId === 'tab-world') fetchGitHubBackupInfo();
+            if (tabId === 'tab-settings') fetchSettings();
         }
 
         function switchToVersionTab() {
@@ -1619,6 +1637,49 @@
             }
         }
 
+        let autoSaveTimer = null;
+        async function autoSaveSetting(key, val) {
+            const badge = document.getElementById("settings_save_badge");
+            if (badge) {
+                badge.innerHTML = `<span>⏳</span> Saving ${key}...`;
+                badge.style.color = "#f59e0b";
+                badge.style.background = "rgba(245, 158, 11, 0.1)";
+                badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
+            }
+            try {
+                const payload = {};
+                payload[key] = val;
+                const res = await fetch("/api/settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    if (badge) {
+                        badge.innerHTML = `<span>✓</span> <strong>${key}</strong> saved instantly!`;
+                        badge.style.color = "#10b981";
+                        badge.style.background = "rgba(16, 185, 129, 0.15)";
+                        badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                        clearTimeout(autoSaveTimer);
+                        autoSaveTimer = setTimeout(() => {
+                            badge.innerHTML = `<span>⚡</span> Auto-Save Active (Har change turant save hota hai)`;
+                            badge.style.color = "#10b981";
+                            badge.style.background = "rgba(16, 185, 129, 0.1)";
+                            badge.style.borderColor = "rgba(16, 185, 129, 0.2)";
+                        }, 3500);
+                    }
+                    showToast(`Instant Auto-Save: ${key} = ${val}`);
+                } else {
+                    if (badge) {
+                        badge.innerHTML = `<span>⚠️</span> Error saving ${key}`;
+                        badge.style.color = "#ef4444";
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
         async function fetchSettings() {
             try {
                 const res = await fetch("/api/settings");
@@ -1627,24 +1688,32 @@
                     if (s["server-name"] && document.getElementById("set_server_name")) {
                         document.getElementById("set_server_name").value = s["server-name"];
                     }
-                    if (s["view-distance"]) document.getElementById("set_view_distance").value = s["view-distance"];
-                    if (s["max-players"]) document.getElementById("set_max_players").value = s["max-players"];
-                    if (s["difficulty"]) document.getElementById("set_difficulty").value = s["difficulty"];
-                    if (s["allow-cheats"]) document.getElementById("set_allow_cheats").value = s["allow-cheats"];
+                    if (s["view-distance"] && document.getElementById("set_view_distance")) document.getElementById("set_view_distance").value = s["view-distance"];
+                    if (s["max-players"] && document.getElementById("set_max_players")) document.getElementById("set_max_players").value = s["max-players"];
+                    if (s["difficulty"] && document.getElementById("set_difficulty")) document.getElementById("set_difficulty").value = s["difficulty"];
+                    if (s["allow-cheats"] && document.getElementById("set_allow_cheats")) document.getElementById("set_allow_cheats").value = s["allow-cheats"];
+                    if (s["gamemode"] && document.getElementById("set_gamemode")) document.getElementById("set_gamemode").value = s["gamemode"];
                 }
             } catch (e) {
                 console.error(e);
             }
         }
 
-        async function saveSettings() {
+        async function saveSettings(doRestart = false) {
             const serverName = document.getElementById("set_server_name") ? document.getElementById("set_server_name").value : "Bedrock 24/7 Server";
             const viewDistance = document.getElementById("set_view_distance").value;
             const maxPlayers = document.getElementById("set_max_players").value;
             const difficulty = document.getElementById("set_difficulty").value;
             const allowCheats = document.getElementById("set_allow_cheats").value;
+            const gamemode = document.getElementById("set_gamemode") ? document.getElementById("set_gamemode").value : "survival";
 
-            showToast("Saving settings & restarting server...");
+            const badge = document.getElementById("settings_save_badge");
+            if (badge) {
+                badge.innerHTML = `<span>⏳</span> Saving all settings to disk & cloud...`;
+                badge.style.color = "#f59e0b";
+            }
+
+            showToast("Saving settings & syncing to cloud backup...");
             await fetch("/api/settings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1653,10 +1722,20 @@
                     "view-distance": viewDistance,
                     "max-players": maxPlayers,
                     "difficulty": difficulty,
-                    "allow-cheats": allowCheats
+                    "allow-cheats": allowCheats,
+                    "gamemode": gamemode
                 })
             });
-            await serverAction("restart");
+
+            if (badge) {
+                badge.innerHTML = `<span>✓</span> All settings saved successfully!`;
+                badge.style.color = "#10b981";
+            }
+
+            if (doRestart) {
+                showToast("Restarting server to reload server.properties...");
+                await serverAction("restart");
+            }
             fetchSettings();
         }
 

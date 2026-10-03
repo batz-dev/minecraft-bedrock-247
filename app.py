@@ -1398,6 +1398,60 @@ def api_quick_action():
 
 # ==================== SETTINGS & PASSWORD API ====================
 
+def update_server_properties(props_dict):
+    if not os.path.exists(PROPERTIES_FILE):
+        return False
+    try:
+        with open(PROPERTIES_FILE, "r") as f:
+            lines = f.readlines()
+    except Exception:
+        lines = []
+
+    updated_keys = set()
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            k, _ = stripped.split("=", 1)
+            k = k.strip()
+            if k in props_dict:
+                val_str = str(props_dict[k]).strip()
+                if val_str.lower() in ["true", "false"]:
+                    val_str = val_str.lower()
+                new_lines.append(f"{k}={val_str}\n")
+                updated_keys.add(k)
+                continue
+        new_lines.append(line)
+
+    for k, v in props_dict.items():
+        if k not in updated_keys:
+            val_str = str(v).strip()
+            if val_str.lower() in ["true", "false"]:
+                val_str = val_str.lower()
+            new_lines.append(f"{k}={val_str}\n")
+
+    with open(PROPERTIES_FILE, "w") as f:
+        f.writelines(new_lines)
+
+    # Sync to BDS dir
+    try:
+        bds_props = "/opt/bedrock-server/server.properties"
+        if os.path.exists("/opt/bedrock-server") and not os.path.islink(bds_props):
+            shutil.copy2(PROPERTIES_FILE, bds_props)
+    except Exception:
+        pass
+
+    # Sync to repo config dir
+    try:
+        cfg_props = os.path.join(BASE_DIR, "config", "server.properties")
+        os.makedirs(os.path.dirname(cfg_props), exist_ok=True)
+        shutil.copy2(PROPERTIES_FILE, cfg_props)
+    except Exception:
+        pass
+
+    return True
+
+
 @app.route("/api/settings", methods=["GET", "POST"])
 def api_settings():
     if not is_authenticated():
@@ -1416,14 +1470,38 @@ def api_settings():
 
     if request.method == "POST":
         data = request.get_json() or {}
-        allowed_keys = ["view-distance", "tick-distance", "max-players", "server-name", "difficulty", "allow-cheats"]
-        if os.path.exists(PROPERTIES_FILE):
-            for k, v in data.items():
-                if k in allowed_keys:
-                    safe_v = str(v).strip().replace("'", "").replace('"', "")
-                    run_bash(f"sed -i 's/^{k}=.*/{k}={safe_v}/' {PROPERTIES_FILE}")
-            return jsonify({"status": "saved"})
-        return jsonify({"error": "File not found"}), 404
+        allowed_keys = [
+            "view-distance", "tick-distance", "max-players", "server-name",
+            "difficulty", "allow-cheats", "gamemode", "force-gamemode",
+            "online-mode", "allow-list", "default-player-permission-level"
+        ]
+        updates = {}
+        for k, v in data.items():
+            if k in allowed_keys:
+                updates[k] = v
+
+        if updates and os.path.exists(PROPERTIES_FILE):
+            update_server_properties(updates)
+
+            # Live in-game console commands if server is running
+            if "difficulty" in updates:
+                diff = str(updates["difficulty"]).strip().lower()
+                run_bash(f'screen -S bedrock -p 0 -X stuff "difficulty {diff}$(printf \'\\r\')"')
+
+            if "allow-cheats" in updates:
+                c_val = str(updates["allow-cheats"]).strip().lower()
+                run_bash(f'screen -S bedrock -p 0 -X stuff "changesetting allow-cheats {c_val}$(printf \'\\r\')"')
+
+            # Optional immediate restart if requested
+            if data.get("restart"):
+                threading.Thread(target=lambda: run_bash('screen -S bedrock -p 0 -X stuff "stop$(printf \'\\r\')"; sleep 2; screen -S bedrock -X quit 2>/dev/null; pkill -9 -x bedrock_server 2>/dev/null; screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a ' + SERVER_LOG_FILE + '; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a ' + SERVER_LOG_FILE + '; sleep 5; done"'), daemon=True).start()
+
+            # Background sync to GitHub backup so cold boot or redeploy never loses these settings
+            if get_github_token():
+                threading.Thread(target=lambda: run_github_backup(trigger="settings_sync"), daemon=True).start()
+
+            return jsonify({"status": "saved", "updated": list(updates.keys())})
+        return jsonify({"error": "File not found or no valid keys"}), 404
 
 
 @app.route("/api/change-password", methods=["POST"])
