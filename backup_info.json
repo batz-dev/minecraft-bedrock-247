@@ -1,9 +1,9 @@
 {
-  "backup_time": "2026-10-02 23:55:16 UTC",
-  "backup_time_ist": "2026-10-03 05:25:16 AM IST",
+  "backup_time": "2026-10-03 00:07:44 UTC",
+  "backup_time_ist": "2026-10-03 05:37:44 AM IST",
   "world_name": "Bedrock level",
   "archive_name": "Bedrock_World_Latest.mcworld",
-  "size": "0.00 MB",
+  "size": "5.64 MB",
   "status": "success",
   "trigger": "manual_web_click",
   "version": "1.26.2.1"
