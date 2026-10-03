@@ -989,7 +989,10 @@ def run_github_backup(trigger="manual"):
         os.makedirs(os.path.join(staging_dir, "tunnel"), exist_ok=True)
 
         target_mcworld = os.path.join(staging_dir, "worlds", "Bedrock_World_Latest.mcworld")
-        shutil.copy2(world_archive, target_mcworld)
+        if total_bytes < 100 * 1024 and os.path.exists(target_mcworld) and os.path.getsize(target_mcworld) > 1024 * 1024:
+            print("[!] Safeguard: Local world is empty. Preserving existing large GitHub world backup.")
+        else:
+            shutil.copy2(world_archive, target_mcworld)
         if os.path.exists(world_archive):
             os.remove(world_archive)
 
@@ -1575,6 +1578,17 @@ def ensure_auto_setup():
         print("[✓] Playit tunnel active in screen session: playit")
     else:
         print("[✓] Playit tunnel is already running.")
+
+    # 6.5 Auto-restore world & settings from GitHub on cold container boot
+    world_db = os.path.join(ACTIVE_WORLD_DIR, "db")
+    has_world = os.path.exists(world_db) and len(os.listdir(world_db)) > 2
+    if not has_world and get_github_token():
+        print("[*] Cold container boot detected. Auto-restoring world & settings from GitHub cloud backup...")
+        try:
+            ok, r_msg = run_github_restore()
+            print(f"[*] Auto-restore result: {ok} - {r_msg}")
+        except Exception as e:
+            print(f"[!] Auto-restore error: {e}")
 
     # 7. Start Bedrock server in screen if not running
     out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
