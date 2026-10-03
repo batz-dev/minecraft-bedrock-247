@@ -1352,16 +1352,34 @@ def api_quick_action():
 
     elif action_type == "item":
         item = data.get("item", "").strip().lower()
-        if item == "diamonds":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" diamond 64$(printf \'\\r\')"')
-            msg = f"Gave 64 Diamonds to '{target}'!"
-        elif item == "iron":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" iron_ingot 64$(printf \'\\r\')"')
-            msg = f"Gave 64 Iron Ingots to '{target}'!"
+        count = data.get("count") or data.get("quantity") or data.get("amount") or 64
+        try:
+            count = max(1, min(65535, int(count)))
+        except (ValueError, TypeError):
+            count = 64
+
+        if item in ["diamonds", "diamond"]:
+            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" diamond {count}$(printf \'\\r\')"')
+            msg = f"Gave {count}x Diamonds to '{target}'!"
+        elif item in ["iron", "iron_ingot"]:
+            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" iron_ingot {count}$(printf \'\\r\')"')
+            msg = f"Gave {count}x Iron Ingots to '{target}'!"
+        elif item in ["golden_apples", "enchanted_golden_apple"]:
+            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" enchanted_golden_apple {count}$(printf \'\\r\')"')
+            msg = f"Gave {count}x Enchanted Golden Apples to '{target}'!"
+        elif item in ["totem", "totem_of_undying"]:
+            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" totem_of_undying {count}$(printf \'\\r\')"')
+            msg = f"Gave {count}x Totem of Undying to '{target}'!"
+        elif item == "elytra":
+            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" elytra {count}$(printf \'\\r\')"')
+            fireworks = min(count * 64, 320)
+            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" firework_rocket {fireworks}$(printf \'\\r\')"')
+            msg = f"Gave {count}x Elytra and {fireworks}x Fireworks to '{target}'!"
         elif item == "netherite_gear":
             commands = [
                 f'give "{safe_target}" netherite_sword 1',
                 f'give "{safe_target}" netherite_pickaxe 1',
+                f'give "{safe_target}" netherite_axe 1',
                 f'give "{safe_target}" netherite_helmet 1',
                 f'give "{safe_target}" netherite_chestplate 1',
                 f'give "{safe_target}" netherite_leggings 1',
@@ -1370,18 +1388,12 @@ def api_quick_action():
             for cmd in commands:
                 run_bash(f'screen -S bedrock -p 0 -X stuff "{cmd}$(printf \'\\r\')"')
             msg = f"Gave full Netherite armor & tool set to '{target}'!"
-        elif item == "elytra":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" elytra 1$(printf \'\\r\')"')
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" firework_rocket 64$(printf \'\\r\')"')
-            msg = f"Gave Elytra and 64 Firework Rockets to '{target}'!"
-        elif item == "golden_apples":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" enchanted_golden_apple 64$(printf \'\\r\')"')
-            msg = f"Gave 64 Enchanted Golden Apples to '{target}'!"
-        elif item == "totem":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" totem_of_undying 1$(printf \'\\r\')"')
-            msg = f"Gave Totem of Undying to '{target}'!"
         else:
-            return jsonify({"error": "Unknown item"}), 400
+            safe_item = re.sub(r'[^a-zA-Z0-9_:]', '', item)
+            if not safe_item:
+                return jsonify({"error": "Invalid item name"}), 400
+            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" {safe_item} {count}$(printf \'\\r\')"')
+            msg = f"Gave {count}x '{safe_item}' to '{target}'!"
 
         return jsonify({"status": "success", "message": msg})
 
