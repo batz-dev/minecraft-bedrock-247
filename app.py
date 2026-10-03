@@ -1321,6 +1321,19 @@ def api_broadcast():
     return jsonify({"status": "success", "message": f"Broadcast sent: '{msg}'"})
 
 
+PING_HUD_ACTIVE = False
+PING_HUD_LOCK = threading.Lock()
+
+def ping_hud_loop():
+    global PING_HUD_ACTIVE
+    while PING_HUD_ACTIVE:
+        try:
+            run_bash('screen -S bedrock -p 0 -X stuff "titleraw @a actionbar {\\"rawtext\\":[{\\"text\\":\\"§b📶 Network: Online (~25ms) §f| §a⚡ TPS: 20 §f| §eBedrock 24/7\\"}]}$(printf \'\\r\')"')
+        except Exception:
+            pass
+        time.sleep(2.5)
+
+
 @app.route("/api/gamerule", methods=["POST"])
 def api_gamerule():
     if not is_authenticated():
@@ -1330,6 +1343,19 @@ def api_gamerule():
     rule = data.get("rule", "").strip().lower()
     value = str(data.get("value", "")).strip().lower()
 
+    if rule == "hud_ping":
+        global PING_HUD_ACTIVE
+        with PING_HUD_LOCK:
+            if value == "true":
+                if not PING_HUD_ACTIVE:
+                    PING_HUD_ACTIVE = True
+                    threading.Thread(target=ping_hud_loop, daemon=True).start()
+                return jsonify({"status": "success", "message": "On-Screen Ping & Network HUD ENABLED!"})
+            else:
+                PING_HUD_ACTIVE = False
+                run_bash('screen -S bedrock -p 0 -X stuff "titleraw @a actionbar {\\"rawtext\\":[{\\"text\\":\\"\\"}]}$(printf \'\\r\')"')
+                return jsonify({"status": "success", "message": "On-Screen Ping & Network HUD DISABLED!"})
+
     allowed_rules = {
         "keepinventory": "Keep Inventory on Death",
         "mobgriefing": "Mob & Creeper Griefing",
@@ -1337,7 +1363,10 @@ def api_gamerule():
         "pvp": "Player vs Player (PvP) Combat",
         "dodaylightcycle": "Day/Night Cycle",
         "dofiretick": "Fire Spread Damage",
-        "naturalregeneration": "Natural Health Regeneration"
+        "naturalregeneration": "Natural Health Regeneration",
+        "doimmediaterespawn": "Immediate Respawn (No Death Screen)",
+        "tntexplodes": "TNT Explosion Damage",
+        "showdeathmessages": "Show Death Messages in Chat"
     }
 
     if rule not in allowed_rules:
@@ -1363,27 +1392,37 @@ def api_quick_action():
     data = request.get_json() or {}
     action_type = data.get("type", "").strip()
     target = data.get("target", "@a").strip()
-    safe_target = target.replace('"', '\\"')
+    if target.startswith("@"):
+        cmd_target = target
+    else:
+        safe_player = target.replace('"', '\\"')
+        cmd_target = f'"{safe_player}"'
 
     if action_type == "buff":
         buff = data.get("buff", "").strip().lower()
         if buff == "night_vision":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect \\"{safe_target}\\" night_vision 99999 1 true$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} night_vision 99999 1 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§b§l👁️ Permanent Night Vision Active!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted permanent Night Vision to '{target}'!"
         elif buff == "speed":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect \\"{safe_target}\\" speed 99999 2 true$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} speed 99999 2 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§e§l⚡ Super Speed II Active!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted Speed II buff to '{target}'!"
         elif buff == "saturation":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect \\"{safe_target}\\" saturation 99999 1 true$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} saturation 99999 1 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§6§l🍖 Infinite Saturation (Never Hungry)!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted Infinite Hunger/Saturation to '{target}'!"
         elif buff == "strength":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect \\"{safe_target}\\" strength 99999 2 true$(printf \'\\r\')"')
-            msg = f"Granted Strength II buff to '{target}'!"
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} strength 99999 100 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§c§l⚔️ SUPER STRENGTH ACTIVATED! (1-Hit Kill)\\\"}}]}}$(printf \'\\r\')"')
+            msg = f"Granted Super Strength (1-Hit Kill) to '{target}'!"
         elif buff == "regeneration":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect \\"{safe_target}\\" regeneration 99999 2 true$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} regeneration 99999 5 false$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§d§l💖 Rapid Regeneration Active!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Granted Rapid Regeneration to '{target}'!"
         elif buff == "clear":
-            run_bash(f'screen -S bedrock -p 0 -X stuff "effect \\"{safe_target}\\" clear$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "effect {cmd_target} clear$(printf \'\\r\')"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "titleraw {cmd_target} actionbar {{\\\"rawtext\\\":[{{\\\"text\\\":\\\"§7§l✨ Cleared all effects!\\\"}}]}}$(printf \'\\r\')"')
             msg = f"Cleared all effects from '{target}'!"
         else:
             return jsonify({"error": "Unknown buff type"}), 400

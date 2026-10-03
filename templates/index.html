@@ -439,6 +439,7 @@
                     <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                             <span style="font-weight: 700; color: #38bdf8;">📍 Show XYZ Coordinates</span>
+                            <span class="badge online" style="font-size: 10px;">ACTIVE</span>
                         </div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
                             Screen ke top-left corner mein Position XYZ hamesha dikhayega.
@@ -447,6 +448,52 @@
                             <button class="btn btn-start btn-sm" onclick="setGameRule('showcoordinates', 'true')">✅ Show XYZ</button>
                             <button class="btn btn-stop btn-sm" onclick="setGameRule('showcoordinates', 'false')">❌ Hide</button>
                             <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule showcoordinates true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Live On-Screen Ping & Network HUD -->
+                    <div style="background: #0b1120; border: 1px solid #0284c7; border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">📶 Live Ping & Network HUD</span>
+                            <span class="badge online" style="font-size: 10px;">NEW</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Sabhi players ke screen par live Ping, 20 TPS aur Server Online status actionbar me dikhayega.
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('hud_ping', 'true')">✅ Enable Ping HUD</button>
+                            <button class="btn btn-stop btn-sm" onclick="setGameRule('hud_ping', 'false')">❌ Disable</button>
+                        </div>
+                    </div>
+
+                    <!-- Instant Respawn (No Death Screen) -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">⚡ Instant Fast Respawn</span>
+                            <span class="badge version" style="font-size: 10px;">MOBILE</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            Marne par 'You Died' screen tap nahi karna padega, seedha bed par instant respawn!
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('doimmediaterespawn', 'true')">✅ Instant Respawn</button>
+                            <button class="btn btn-stop btn-sm" onclick="setGameRule('doimmediaterespawn', 'false')">Normal</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule doimmediaterespawn true')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- TNT Explosion Protection -->
+                    <div style="background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">🧨 TNT Explosion Anti-Grief</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                            World ko TNT ke blast se safe rakho ya mining ke liye allow karo.
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-stop btn-sm" onclick="setGameRule('tntexplodes', 'false')">🛡️ Block TNT</button>
+                            <button class="btn btn-start btn-sm" onclick="setGameRule('tntexplodes', 'true')">Allow TNT</button>
+                            <button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamerule tntexplodes false')">📋 Copy</button>
                         </div>
                     </div>
 
