@@ -718,58 +718,129 @@
                 </div>
             </div>
 
-            <!-- 7. Teleportation & World Exploration Commands -->
-            <div class="card">
-                <div class="card-title" style="font-size: 15px; margin-bottom: 6px;">🚀 Teleportation & World Exploration (In-Game Commands)</div>
+            <!-- 7. Teleportation & Structure Locator (Web Cheats) -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-title" style="font-size: 15px; margin-bottom: 6px;">🚀 Teleportation & Structure Locator (Web Cheats)</div>
                 <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-                    Game chat mein ye commands likh kar village, fortresses aur doston ke paas turant jao:
+                    Kisi bhi player ya sabhi ko coordinates ya doosre player ke paas direct teleport karo, aur structures (Village, Fortress, etc.) dhundho!
                 </div>
-                <table class="player-table">
-                    <thead>
-                        <tr>
-                            <th>Action & Purpose</th>
-                            <th>In-Game Command</th>
-                            <th>Quick Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>🏡 Find Nearest Village</strong><br><span style="font-size: 11px; color: var(--text-muted);">Paas ka gaon dhundho aur coordinates pao</span></td>
-                            <td><code>/locate structure village</code></td>
-                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/locate structure village')">📋 Copy</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>🏰 Find Nether Fortress</strong><br><span style="font-size: 11px; color: var(--text-muted);">Blaze rods & Wither skulls ke liye</span></td>
-                            <td><code>/locate structure fortress</code></td>
-                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/locate structure fortress')">📋 Copy</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>🏛️ Find Ancient City</strong><br><span style="font-size: 11px; color: var(--text-muted);">Deep dark Warden city coordinates</span></td>
-                            <td><code>/locate structure ancient_city</code></td>
-                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/locate structure ancient_city')">📋 Copy</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>📍 Set Respawn Point</strong><br><span style="font-size: 11px; color: var(--text-muted);">Jahan khade ho wahi spawn point set karo</span></td>
-                            <td><code>/spawnpoint</code></td>
-                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/spawnpoint')">📋 Copy</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>👥 Teleport to Friend</strong><br><span style="font-size: 11px; color: var(--text-muted);">Dost ke paas teleport ho jao</span></td>
-                            <td><code>/tp @s "PlayerName"</code></td>
-                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/tp @s ')">📋 Copy</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>🎨 Creative Mode Switch</strong><br><span style="font-size: 11px; color: var(--text-muted);">Unlimited blocks & flying</span></td>
-                            <td><code>/gamemode creative</code></td>
-                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamemode creative')">📋 Copy</button></td>
-                        </tr>
-                        <tr>
-                            <td><strong>🌲 Survival Mode Switch</strong><br><span style="font-size: 11px; color: var(--text-muted);">Normal game play</span></td>
-                            <td><code>/gamemode survival</code></td>
-                            <td><button class="btn btn-secondary btn-sm" onclick="copySnippet('/gamemode survival')">📋 Copy</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+
+                <!-- Teleport Control Box -->
+                <div style="background: #0f172a; border: 1px solid #38bdf8; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+                    <div style="font-weight: 700; color: #38bdf8; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        <span>📍</span> Direct Teleport Player(s)
+                    </div>
+
+                    <!-- Who to TP -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                        <div>
+                            <span class="setting-label">1. Kisko Teleport Karna Hai (Who to TP):</span>
+                            <select id="tpSourcePlayer" class="setting-input" style="width: 100%; font-weight: 600;">
+                                <option value="@a">@a (All Players - Sabhi Players Ko)</option>
+                                <option value="@s">@s (Command Sender)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <span class="setting-label">2. Teleport Destination Type:</span>
+                            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                <button type="button" id="tpModeCoordsBtn" class="btn btn-primary btn-sm" style="flex: 1;" onclick="setTpMode('coords')">📌 By Coordinates (X, Y, Z)</button>
+                                <button type="button" id="tpModePlayerBtn" class="btn btn-outline btn-sm" style="flex: 1; border: 1px solid #475569; background: #1e293b; color: #cbd5e1;" onclick="setTpMode('player')">👥 To Another Player</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mode A: Coordinates Input -->
+                    <div id="tpCoordsContainer" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                        <span class="setting-label" style="color: #cbd5e1;">Target Coordinates:</span>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div>
+                                <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">X (West/East)</label>
+                                <input type="text" id="tpX" class="setting-input" style="width: 100%; font-weight: bold;" placeholder="e.g. 0 ya ~" value="0">
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">Y (Height/Altitude)</label>
+                                <input type="text" id="tpY" class="setting-input" style="width: 100%; font-weight: bold;" placeholder="e.g. 70 ya ~" value="~">
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">Z (North/South)</label>
+                                <input type="text" id="tpZ" class="setting-input" style="width: 100%; font-weight: bold;" placeholder="e.g. 0 ya ~" value="0">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                            <span style="font-size: 11px; color: #94a3b8;">Quick Presets:</span>
+                            <button type="button" class="btn btn-sm btn-outline" style="border: 1px solid #475569; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; background: #1e293b; color: #fff;" onclick="setCoordinates('0', '~', '0')">📍 World Spawn (0, ~, 0)</button>
+                            <button type="button" class="btn btn-sm btn-outline" style="border: 1px solid #475569; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; background: #1e293b; color: #fff;" onclick="setCoordinates('~', '120', '~')">☁️ Safe Sky (~, 120, ~)</button>
+                            <button type="button" class="btn btn-sm btn-outline" style="border: 1px solid #475569; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; background: #1e293b; color: #fff;" onclick="setCoordinates('~', '-50', '~')">⛏️ Deep Caves (~, -50, ~)</button>
+                            <button type="button" class="btn btn-sm btn-outline" style="border: 1px solid #475569; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; background: #1e293b; color: #fff;" onclick="setCoordinates('~', '~10', '~')">⬆️ Up 10 Blocks (~, ~10, ~)</button>
+                        </div>
+                    </div>
+
+                    <!-- Mode B: Destination Player Input -->
+                    <div id="tpPlayerContainer" style="display: none; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                        <span class="setting-label" style="color: #cbd5e1;">Target Destination Player (Kiske paas teleport karna hai):</span>
+                        <select id="tpDestPlayer" class="setting-input" style="width: 100%; font-weight: 600;">
+                            <option value="">-- Select Destination Player --</option>
+                        </select>
+                        <input type="text" id="tpDestCustomPlayer" class="setting-input" style="width: 100%; margin-top: 8px;" placeholder="Ya koi bhi player gamertag yahan type karein...">
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button class="btn btn-primary" style="padding: 10px 24px; font-weight: 700; background: linear-gradient(135deg, #0284c7, #2563eb);" onclick="executeTeleport()">🚀 Teleport Player(s) Now</button>
+                    </div>
+                </div>
+
+                <!-- Structure & Biome Locator Box -->
+                <div style="background: #0f172a; border: 1px solid #10b981; border-radius: 10px; padding: 16px;">
+                    <div style="font-weight: 700; color: #10b981; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        <span>🗺️</span> Structure & Biome Locator (/locate)
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+                        Server ke kisi bhi structure ya biome ke exact coordinates dhundho aur 1-click me wahan teleport ho jao!
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <span class="setting-label">Select Structure to Find:</span>
+                            <select id="locateStructureSelect" class="setting-input" style="width: 100%;">
+                                <option value="village">🏡 Village (Gaon)</option>
+                                <option value="fortress">🏰 Nether Fortress (Blaze Rods/Skulls)</option>
+                                <option value="stronghold">🏛️ Stronghold (End Portal)</option>
+                                <option value="ancient_city">🗿 Ancient City (Deep Dark / Warden)</option>
+                                <option value="bastion_remnant">🐷 Bastion Remnant (Nether Piglins)</option>
+                                <option value="desert_pyramid">🛕 Desert Pyramid (Temple Loot)</option>
+                                <option value="monument">🌊 Ocean Monument (Guardians)</option>
+                                <option value="mansion">🏚️ Woodland Mansion (Totems/Evokers)</option>
+                                <option value="buried_treasure">🏝️ Buried Treasure (Heart of the Sea)</option>
+                                <option value="mineshaft">⛏️ Abandoned Mineshaft</option>
+                                <option value="trial_chambers">⚔️ Trial Chamber</option>
+                                <option value="end_city">🛸 End City (Elytra Ships)</option>
+                                <option value="pillager_outpost">🏹 Pillager Outpost</option>
+                                <option value="shipwreck">⛵ Shipwreck</option>
+                            </select>
+                        </div>
+                        <div>
+                            <span class="setting-label">Or Custom Structure / Biome Name:</span>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="locateCustomInput" class="setting-input" style="flex: 1;" placeholder="e.g. swamp, village, cherry_grove...">
+                                <button class="btn btn-primary" style="background: #10b981; font-weight: 700; white-space: nowrap;" onclick="executeLocate()">🔍 Find Location</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Locate Results Container -->
+                    <div id="locateResultBox" style="display: none; background: #0b1120; border: 1px solid #10b981; border-radius: 8px; padding: 12px; margin-top: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <div>
+                                <span style="font-weight: 700; color: #10b981;" id="locateResultTitle">📍 Structure Location</span>
+                                <div style="font-size: 13px; color: #e2e8f0; font-family: monospace; margin-top: 3px;" id="locateResultText">Searching...</div>
+                            </div>
+                            <div id="locateTpBtnContainer" style="display: none;">
+                                <button class="btn btn-secondary btn-sm" id="locateTpBtn" onclick="teleportToLocatedCoords()">🚀 Teleport Target Here</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1351,26 +1422,45 @@
                     });
                 }
 
-                // Populate Cheat Target Dropdown
+                // Populate Cheat Target & Teleport Dropdowns
                 const cheatSel = document.getElementById("cheatTargetPlayer");
+                const tpSrcSel = document.getElementById("tpSourcePlayer");
+                const tpDestSel = document.getElementById("tpDestPlayer");
+
+                let baseOpts = `
+                    <option value="@a">@a (All Players - Sabhi Players Ko)</option>
+                    <option value="@s">@s (Command Sender)</option>
+                `;
+                let destOpts = `
+                    <option value="">-- Select Destination Player --</option>
+                `;
+                data.online.forEach(p => {
+                    baseOpts += `<option value="${p}">${p} (Online)</option>`;
+                    destOpts += `<option value="${p}">${p} (Online)</option>`;
+                });
+                (data.operators || []).forEach(o => {
+                    if (!data.online.includes(o.name)) {
+                        baseOpts += `<option value="${o.name}">${o.name} (Admin)</option>`;
+                        destOpts += `<option value="${o.name}">${o.name} (Admin)</option>`;
+                    }
+                });
+
                 if (cheatSel) {
                     const currentVal = cheatSel.value;
-                    let opts = `
-                        <option value="@a">@a (All Players)</option>
-                        <option value="@s">@s (Command Sender)</option>
-                    `;
-                    data.online.forEach(p => {
-                        opts += `<option value="${p}">${p} (Online)</option>`;
-                    });
-                    (data.operators || []).forEach(o => {
-                        if (!data.online.includes(o.name)) {
-                            opts += `<option value="${o.name}">${o.name} (Admin)</option>`;
-                        }
-                    });
-                    cheatSel.innerHTML = opts;
+                    cheatSel.innerHTML = baseOpts;
                     if (currentVal) cheatSel.value = currentVal;
                     const buffSpan = document.getElementById("buffTargetSpan");
                     if (buffSpan) buffSpan.innerText = cheatSel.value;
+                }
+                if (tpSrcSel) {
+                    const currentVal = tpSrcSel.value;
+                    tpSrcSel.innerHTML = baseOpts;
+                    if (currentVal) tpSrcSel.value = currentVal;
+                }
+                if (tpDestSel) {
+                    const currentVal = tpDestSel.value;
+                    tpDestSel.innerHTML = destOpts;
+                    if (currentVal) tpDestSel.value = currentVal;
                 }
             } catch (e) {
                 console.error(e);
@@ -1762,6 +1852,157 @@
             if (customInput && val) {
                 customInput.value = val;
             }
+        }
+
+        let activeTpMode = "coords";
+        function setTpMode(mode) {
+            activeTpMode = mode;
+            const coordsBtn = document.getElementById("tpModeCoordsBtn");
+            const playerBtn = document.getElementById("tpModePlayerBtn");
+            const coordsContainer = document.getElementById("tpCoordsContainer");
+            const playerContainer = document.getElementById("tpPlayerContainer");
+
+            if (mode === "coords") {
+                if (coordsBtn) {
+                    coordsBtn.className = "btn btn-primary btn-sm";
+                    coordsBtn.style.background = "";
+                    coordsBtn.style.color = "";
+                }
+                if (playerBtn) {
+                    playerBtn.className = "btn btn-outline btn-sm";
+                    playerBtn.style.background = "#1e293b";
+                    playerBtn.style.color = "#cbd5e1";
+                }
+                if (coordsContainer) coordsContainer.style.display = "block";
+                if (playerContainer) playerContainer.style.display = "none";
+            } else {
+                if (playerBtn) {
+                    playerBtn.className = "btn btn-primary btn-sm";
+                    playerBtn.style.background = "";
+                    playerBtn.style.color = "";
+                }
+                if (coordsBtn) {
+                    coordsBtn.className = "btn btn-outline btn-sm";
+                    coordsBtn.style.background = "#1e293b";
+                    coordsBtn.style.color = "#cbd5e1";
+                }
+                if (coordsContainer) coordsContainer.style.display = "none";
+                if (playerContainer) playerContainer.style.display = "block";
+            }
+        }
+
+        function setCoordinates(x, y, z) {
+            if (document.getElementById("tpX")) document.getElementById("tpX").value = x;
+            if (document.getElementById("tpY")) document.getElementById("tpY").value = y;
+            if (document.getElementById("tpZ")) document.getElementById("tpZ").value = z;
+        }
+
+        async function executeTeleport() {
+            const sourceSel = document.getElementById("tpSourcePlayer");
+            const target = sourceSel ? sourceSel.value : "@a";
+
+            if (activeTpMode === "coords") {
+                const x = document.getElementById("tpX") ? document.getElementById("tpX").value.trim() : "0";
+                const y = document.getElementById("tpY") ? document.getElementById("tpY").value.trim() : "~";
+                const z = document.getElementById("tpZ") ? document.getElementById("tpZ").value.trim() : "0";
+
+                showToast(`Teleporting ${target} to (${x}, ${y}, ${z})...`);
+                try {
+                    const res = await fetch("/api/quick-action", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ type: "teleport", mode: "coords", target, x, y, z })
+                    });
+                    const d = await res.json();
+                    if (res.ok) {
+                        showToast(d.message || `Teleported ${target}!`);
+                    } else {
+                        alert("Teleport Error: " + (d.error || "Failed to teleport"));
+                    }
+                } catch (e) {
+                    alert("Error: " + e);
+                }
+            } else {
+                const destCustom = document.getElementById("tpDestCustomPlayer") ? document.getElementById("tpDestCustomPlayer").value.trim() : "";
+                const destSel = document.getElementById("tpDestPlayer") ? document.getElementById("tpDestPlayer").value : "";
+                const destination = destCustom || destSel;
+
+                if (!destination) {
+                    alert("Kiske paas teleport karna hai, wo player select karein ya gamertag likhein!");
+                    return;
+                }
+
+                showToast(`Teleporting ${target} to ${destination}...`);
+                try {
+                    const res = await fetch("/api/quick-action", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ type: "teleport", mode: "player", target, destination })
+                    });
+                    const d = await res.json();
+                    if (res.ok) {
+                        showToast(d.message || `Teleported ${target} to ${destination}!`);
+                    } else {
+                        alert("Teleport Error: " + (d.error || "Failed to teleport"));
+                    }
+                } catch (e) {
+                    alert("Error: " + e);
+                }
+            }
+        }
+
+        let lastLocatedCoords = null;
+        async function executeLocate() {
+            const customInput = document.getElementById("locateCustomInput") ? document.getElementById("locateCustomInput").value.trim() : "";
+            const selectVal = document.getElementById("locateStructureSelect") ? document.getElementById("locateStructureSelect").value : "village";
+            const structure = customInput || selectVal;
+
+            const resBox = document.getElementById("locateResultBox");
+            const resTitle = document.getElementById("locateResultTitle");
+            const resText = document.getElementById("locateResultText");
+            const tpBtnContainer = document.getElementById("locateTpBtnContainer");
+            const tpBtn = document.getElementById("locateTpBtn");
+
+            if (resBox) resBox.style.display = "block";
+            if (resTitle) resTitle.innerHTML = `🔍 Searching for nearest <strong>${structure}</strong>...`;
+            if (resText) resText.innerHTML = "Querying Minecraft world generation...";
+            if (tpBtnContainer) tpBtnContainer.style.display = "none";
+
+            showToast(`Locating nearest ${structure}...`);
+            try {
+                const res = await fetch("/api/quick-action", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "locate", structure })
+                });
+                const d = await res.json();
+                if (res.ok) {
+                    if (resTitle) resTitle.innerHTML = `📍 Location for '${d.structure || structure}':`;
+                    if (resText) resText.innerHTML = d.message || "Located!";
+
+                    if (d.coords && d.coords.x && d.coords.z) {
+                        lastLocatedCoords = d.coords;
+                        setCoordinates(d.coords.x, d.coords.y || "~", d.coords.z);
+                        if (tpBtnContainer) tpBtnContainer.style.display = "block";
+                        if (tpBtn) tpBtn.innerText = `🚀 Teleport Here (${d.coords.x}, ${d.coords.y || '~'}, ${d.coords.z})`;
+                        showToast(`Found! Coordinates: ${d.coords.x}, ${d.coords.z}`);
+                    }
+                } else {
+                    if (resText) resText.innerHTML = "Error: " + (d.error || "Could not locate structure");
+                }
+            } catch (e) {
+                if (resText) resText.innerHTML = "Error: " + e;
+            }
+        }
+
+        async function teleportToLocatedCoords() {
+            if (!lastLocatedCoords) {
+                alert("Pehle koi structure locate karein!");
+                return;
+            }
+            setTpMode("coords");
+            setCoordinates(lastLocatedCoords.x, lastLocatedCoords.y || "~", lastLocatedCoords.z);
+            await executeTeleport();
         }
 
         let autoSaveTimer = null;

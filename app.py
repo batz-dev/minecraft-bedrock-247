@@ -1397,6 +1397,61 @@ def api_quick_action():
 
         return jsonify({"status": "success", "message": msg})
 
+    elif action_type in ["teleport", "tp"]:
+        mode = data.get("mode", "coords")
+        if mode == "player":
+            dest = data.get("destination", "").strip()
+            if not dest:
+                return jsonify({"error": "No destination player specified"}), 400
+            safe_dest = dest.replace('"', '\\"')
+            run_bash(f'screen -S bedrock -p 0 -X stuff "tp \\"{safe_target}\\" \\"{safe_dest}\\"$(printf \'\\r\')"')
+            msg = f"Teleported '{target}' to player '{dest}'!"
+            return jsonify({"status": "success", "message": msg})
+        else:
+            x = str(data.get("x", "~")).strip() or "~"
+            y = str(data.get("y", "~")).strip() or "~"
+            z = str(data.get("z", "~")).strip() or "~"
+            safe_x = re.sub(r'[^0-9\-~.]', '', x) or "~"
+            safe_y = re.sub(r'[^0-9\-~.]', '', y) or "~"
+            safe_z = re.sub(r'[^0-9\-~.]', '', z) or "~"
+            run_bash(f'screen -S bedrock -p 0 -X stuff "tp \\"{safe_target}\\" {safe_x} {safe_y} {safe_z}$(printf \'\\r\')"')
+            msg = f"Teleported '{target}' to coordinates ({safe_x}, {safe_y}, {safe_z})!"
+            return jsonify({"status": "success", "message": msg, "coords": {"x": safe_x, "y": safe_y, "z": safe_z}})
+
+    elif action_type == "locate":
+        struct = data.get("structure") or data.get("name") or "village"
+        locate_kind = data.get("locate_type", "structure")
+        safe_struct = re.sub(r'[^a-zA-Z0-9_:]', '', struct.strip().lower())
+        if not safe_struct:
+            return jsonify({"error": "Invalid structure name"}), 400
+
+        cmd = f"locate {locate_kind} {safe_struct}"
+        run_bash(f'screen -S bedrock -p 0 -X stuff "{cmd}$(printf \'\\r\')"')
+
+        time.sleep(0.8)
+        found_msg = f"Locate command executed for '{safe_struct}'."
+        coords = None
+        if os.path.exists(SERVER_LOG_FILE):
+            out, _, _ = run_bash(f'tail -n 25 "{SERVER_LOG_FILE}"')
+            lines = out.splitlines()
+            for line in reversed(lines):
+                if "The nearest" in line and (safe_struct in line or "is at block" in line or "is at" in line):
+                    found_msg = line.split("INFO] ", 1)[-1] if "INFO] " in line else line
+                    m = re.search(r'is at (?:block )?([-\d]+),\s*(\([^\)]+\)|[-\d]+)?,\s*([-\d]+)', line)
+                    if m:
+                        coords = {"x": m.group(1), "y": "~" if "(y?)" in (m.group(2) or "") else m.group(2), "z": m.group(3)}
+                    break
+                elif "Could not find" in line or "syntax error" in line.lower():
+                    found_msg = line.split("ERROR] ", 1)[-1] if "ERROR] " in line else line
+                    break
+
+        return jsonify({
+            "status": "success",
+            "message": found_msg,
+            "coords": coords,
+            "structure": safe_struct
+        })
+
     elif action_type == "custom":
         cmd = data.get("command", "").strip()
         if not cmd:
