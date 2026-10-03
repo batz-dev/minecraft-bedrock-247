@@ -576,24 +576,20 @@ def api_logs():
     if not is_authenticated():
         return jsonify({"error": "Unauthorized"}), 401
 
-    source = request.args.get("source", "bedrock")
-    target_file = PLAYIT_LOG_FILE if source == "playit" else SERVER_LOG_FILE
-
-    if not os.path.exists(target_file):
+    if not os.path.exists(SERVER_LOG_FILE):
         return jsonify({"logs": []})
 
     try:
-        with open(target_file, "r", encoding="utf-8", errors="ignore") as f:
+        with open(SERVER_LOG_FILE, "r", encoding="utf-8", errors="ignore") as f:
             lines = [l.rstrip("\r\n") for l in f.readlines()[-250:]]
 
-        if source == "bedrock":
-            filtered = [
-                l for l in lines 
-                if not re.search(r"There are \d+/\d+ players online:", l) 
-                and l.strip() != "list"
-            ]
-            return jsonify({"logs": filtered[-100:]})
-        return jsonify({"logs": lines[-100:]})
+        # Filter out repetitive player list queries and raw 'list' commands
+        filtered = [
+            l for l in lines 
+            if not re.search(r"There are \d+/\d+ players online:", l) 
+            and l.strip() != "list"
+        ]
+        return jsonify({"logs": filtered[-100:]})
     except Exception as e:
         return jsonify({"logs": [f"Error reading logs: {e}"]})
 
@@ -626,7 +622,7 @@ def api_action():
         out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
         if not out_bds.strip():
             run_bash('screen -S bedrock -X quit 2>/dev/null || true')
-            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" >> \\"{SERVER_LOG_FILE}\\" 2>&1; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 >> \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
+            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
         return jsonify({"status": "started"})
     elif action == "stop":
         run_bash('screen -S bedrock -p 0 -X stuff "stop$(printf \'\\r\')"')
@@ -638,14 +634,8 @@ def api_action():
         run_bash(f'bash "{SERVER_CONTROL_SCRIPT}" start >/dev/null 2>&1 || true')
         out_bds, _, _ = run_bash("ps -o pid=,stat= -C bedrock_server 2>/dev/null | awk '$2 !~ /Z/ {print $1}'")
         if not out_bds.strip():
-            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" >> \\"{SERVER_LOG_FILE}\\" 2>&1; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 >> \\"{SERVER_LOG_FILE}\\"; sleep 5; done"')
+            run_bash(f'screen -dmS bedrock bash -c "while true; do echo \\"[\\$(date)] Starting Bedrock Server...\\" | tee -a {SERVER_LOG_FILE}; cd /opt/bedrock-server && LD_LIBRARY_PATH=. ./bedrock_server 2>&1 | tee -a {SERVER_LOG_FILE}; sleep 5; done"')
         return jsonify({"status": "restarted"})
-    elif action == "restart_playit":
-        run_bash('screen -S playit -X quit 2>/dev/null || true')
-        run_bash('pkill -9 -x playitd 2>/dev/null || true')
-        playit_toml = os.path.join(PLAYIT_DIR, "playit.toml")
-        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; playitd --secret_path \\"{playit_toml}\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; sleep 5; done"')
-        return jsonify({"status": "playit_restarted"})
     else:
         return jsonify({"error": "Invalid action"}), 400
 
@@ -1398,28 +1388,47 @@ def api_quick_action():
         except (ValueError, TypeError):
             count = 64
 
-        if item in ["diamonds", "diamond"]:
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" diamond {count}$(printf \'\\r\')"')
-            msg = f"Gave {count}x Diamonds to '{target}'!"
-        elif item in ["iron", "iron_ingot"]:
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" iron_ingot {count}$(printf \'\\r\')"')
-            msg = f"Gave {count}x Iron Ingots to '{target}'!"
-        elif item in ["golden_apples", "enchanted_golden_apple"]:
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" enchanted_golden_apple {count}$(printf \'\\r\')"')
-            msg = f"Gave {count}x Enchanted Golden Apples to '{target}'!"
-        elif item in ["totem", "totem_of_undying"]:
-            run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" totem_of_undying {count}$(printf \'\\r\')"')
-            msg = f"Gave {count}x Totem of Undying to '{target}'!"
-        elif item == "elytra":
+        ITEM_ALIASES = {
+            "diamonds": "diamond",
+            "iron": "iron_ingot",
+            "gold": "gold_ingot",
+            "netherite": "netherite_ingot",
+            "emeralds": "emerald",
+            "steak": "cooked_beef",
+            "beef": "cooked_beef",
+            "xp": "experience_bottle",
+            "xp_bottle": "experience_bottle",
+            "bottle_o_enchanting": "experience_bottle",
+            "totem": "totem_of_undying",
+            "gapple": "golden_apple",
+            "god_apple": "enchanted_golden_apple",
+            "golden_apples": "enchanted_golden_apple",
+            "spawner": "mob_spawner",
+            "monster_spawner": "mob_spawner",
+            "redstone_dust": "redstone",
+            "rocket": "firework_rocket",
+            "rockets": "firework_rocket",
+            "fireworks": "firework_rocket",
+            "skull": "wither_skeleton_skull",
+            "pearl": "ender_pearl",
+            "pearls": "ender_pearl",
+            "template": "netherite_upgrade_smithing_template",
+            "stone_bricks": "stonebrick",
+            "stone_brick": "stonebrick"
+        }
+        item = ITEM_ALIASES.get(item, item)
+
+        if item == "elytra":
             run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" elytra {count}$(printf \'\\r\')"')
             fireworks = min(count * 64, 320)
             run_bash(f'screen -S bedrock -p 0 -X stuff "give \\"{safe_target}\\" firework_rocket {fireworks}$(printf \'\\r\')"')
             msg = f"Gave {count}x Elytra and {fireworks}x Fireworks to '{target}'!"
-        elif item == "netherite_gear":
+        elif item in ["netherite_gear", "netherite_kit"]:
             commands = [
                 f'give "{safe_target}" netherite_sword 1',
                 f'give "{safe_target}" netherite_pickaxe 1',
                 f'give "{safe_target}" netherite_axe 1',
+                f'give "{safe_target}" netherite_shovel 1',
                 f'give "{safe_target}" netherite_helmet 1',
                 f'give "{safe_target}" netherite_chestplate 1',
                 f'give "{safe_target}" netherite_leggings 1',
@@ -1428,6 +1437,20 @@ def api_quick_action():
             for cmd in commands:
                 run_bash(f'screen -S bedrock -p 0 -X stuff "{cmd}$(printf \'\\r\')"')
             msg = f"Gave full Netherite armor & tool set to '{target}'!"
+        elif item in ["diamond_gear", "diamond_kit"]:
+            commands = [
+                f'give "{safe_target}" diamond_sword 1',
+                f'give "{safe_target}" diamond_pickaxe 1',
+                f'give "{safe_target}" diamond_axe 1',
+                f'give "{safe_target}" diamond_shovel 1',
+                f'give "{safe_target}" diamond_helmet 1',
+                f'give "{safe_target}" diamond_chestplate 1',
+                f'give "{safe_target}" diamond_leggings 1',
+                f'give "{safe_target}" diamond_boots 1'
+            ]
+            for cmd in commands:
+                run_bash(f'screen -S bedrock -p 0 -X stuff "{cmd}$(printf \'\\r\')"')
+            msg = f"Gave full Diamond armor & tool set to '{target}'!"
         else:
             safe_item = re.sub(r'[^a-zA-Z0-9_:]', '', item)
             if not safe_item:
@@ -1700,7 +1723,7 @@ def ensure_auto_setup():
             "view-distance=6\n"
             "tick-distance=4\n"
             "player-idle-timeout=30\n"
-            "max-threads=2\n"
+            "max-threads=4\n"
             "level-name=Bedrock level\n"
             "level-seed=\n"
             "default-player-permission-level=member\n"
@@ -1759,7 +1782,7 @@ def ensure_auto_setup():
     if not out_playit.strip():
         print("[*] Starting Playit tunnel in screen...")
         run_bash('screen -S playit -X quit 2>/dev/null || true')
-        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; playitd --secret_path \\"{playit_toml}\\" >> \\"{PLAYIT_LOG_FILE}\\" 2>&1; sleep 5; done"')
+        run_bash(f'screen -dmS playit bash -c "while true; do echo \\"[\\$(date)] Starting Playit tunnel...\\" | tee -a \\"{PLAYIT_LOG_FILE}\\"; playitd --secret_path \\"{playit_toml}\\" 2>&1 | tee -a \\"{PLAYIT_LOG_FILE}\\"; sleep 5; done"')
         print("[✓] Playit tunnel active in screen session: playit")
     else:
         print("[✓] Playit tunnel is already running.")
