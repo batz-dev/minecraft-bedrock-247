@@ -560,65 +560,54 @@
                 </div>
             </div>
 
-            <!-- 6. Universal Custom Item & Quantity Giver -->
+            <!-- 6. Universal Complete Item & Quantity Giver (All 220+ Items) -->
             <div class="card" style="margin-bottom: 20px;">
-                <div class="card-title" style="font-size: 15px; margin-bottom: 6px;">🎁 Give ANY Item & Custom Quantity to Anyone</div>
-                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-                    Ab fixed 64 ki jagah koi bhi manchaaha item aur manchaahi quantity kisi bhi player ko do!
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+                    <div class="card-title" style="font-size: 15px; margin: 0;">🎁 All Items & Custom Quantity Giver</div>
+                    <span id="itemCountBadge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid #0284c7; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700;">
+                        220+ Items Loaded
+                    </span>
+                </div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                    Minecraft Bedrock ke <b>sabhi items</b> (Tools, Armor, Ores, Redstone/Farms, Food, Boss drops, Spawn Eggs) kisi bhi quantity me kisi ko bhi do!
+                </div>
+
+                <!-- Category Filter Pills -->
+                <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; scrollbar-width: thin;">
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_all" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #0284c7; color: #fff; border: 1px solid #38bdf8;" onclick="filterItemCategory('all', this)">✨ All (220+)</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_combat" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('combat', this)">⚔️ Weapons & Tools</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_armor" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('armor', this)">🛡️ Armor & Elytra</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_ores" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('ores', this)">💎 Ores & Minerals</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_redstone" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('redstone', this)">🔴 Redstone & Auto-Farms</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_food" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('food', this)">🍎 Food & Crops</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_magic" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('magic', this)">🔮 Rare, Nether & End</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_building" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('building', this)">🧱 Blocks & Wood</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_utility" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('utility', this)">📦 Utility & Storage</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_drops" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('drops', this)">🦁 Mob Drops</button>
+                    <button type="button" class="btn btn-sm item-cat-btn" id="catBtn_spawns" style="padding: 4px 10px; font-size: 12px; border-radius: 20px; white-space: nowrap; background: #1e293b; color: #cbd5e1; border: 1px solid #475569;" onclick="filterItemCategory('spawns', this)">🥚 Spawn Eggs</button>
                 </div>
 
                 <!-- Custom Item Control Box -->
                 <div style="background: #0f172a; border: 1px solid #38bdf8; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px;">
                         <div>
-                            <span class="setting-label" style="color: #38bdf8;">1. Select or Type Item Name:</span>
-                            <div style="display: flex; gap: 6px;">
-                                <select id="customItemSelect" class="setting-input" style="flex: 1;" onchange="onPresetItemSelected(this.value)">
-                                    <option value="">-- Choose Popular Item --</option>
-                                    <optgroup label="Valuables & Ores">
-                                        <option value="diamond">💎 Diamond</option>
-                                        <option value="diamond_block">💎 Diamond Block</option>
-                                        <option value="netherite_ingot">🪙 Netherite Ingot</option>
-                                        <option value="netherite_block">🪙 Netherite Block</option>
-                                        <option value="ancient_debris">🪨 Ancient Debris</option>
-                                        <option value="emerald">💚 Emerald</option>
-                                        <option value="gold_ingot">🥇 Gold Ingot</option>
-                                        <option value="iron_ingot">🧱 Iron Ingot</option>
-                                        <option value="iron_block">🧱 Iron Block</option>
-                                    </optgroup>
-                                    <optgroup label="Combat, Survival & Flying">
-                                        <option value="totem_of_undying">🛡️ Totem of Undying</option>
-                                        <option value="elytra">🪽 Elytra</option>
-                                        <option value="firework_rocket">🚀 Firework Rocket</option>
-                                        <option value="enchanted_golden_apple">🍎 Enchanted Golden Apple</option>
-                                        <option value="golden_apple">🍏 Golden Apple</option>
-                                        <option value="golden_carrot">🥕 Golden Carrot</option>
-                                        <option value="netherite_sword">🗡️ Netherite Sword</option>
-                                        <option value="netherite_pickaxe">⛏️ Netherite Pickaxe</option>
-                                        <option value="netherite_axe">🪓 Netherite Axe</option>
-                                        <option value="trident">🔱 Trident</option>
-                                        <option value="bow">🏹 Bow</option>
-                                        <option value="arrow">🎯 Arrow</option>
-                                    </optgroup>
-                                    <optgroup label="Magic, Utility & Explosives">
-                                        <option value="experience_bottle">🧪 Bottle o' Enchanting (XP)</option>
-                                        <option value="ender_pearl">🔮 Ender Pearl</option>
-                                        <option value="eye_of_ender">👁️ Eye of Ender</option>
-                                        <option value="tnt">🧨 TNT Block</option>
-                                        <option value="beacon">🌟 Beacon</option>
-                                        <option value="shulker_box">📦 Shulker Box</option>
-                                        <option value="obsidian">🧱 Obsidian</option>
-                                        <option value="crying_obsidian">🟣 Crying Obsidian</option>
-                                        <option value="bedrock">🛑 Bedrock</option>
-                                        <option value="water_bucket">🪣 Water Bucket</option>
-                                        <option value="lava_bucket">🪣 Lava Bucket</option>
-                                        <option value="saddle">🐎 Saddle</option>
-                                        <option value="name_tag">🏷️ Name Tag</option>
-                                        <option value="lead">🪢 Lead</option>
-                                    </optgroup>
-                                </select>
+                            <span class="setting-label" style="color: #38bdf8;">1. Search & Select Item:</span>
+                            <!-- Live Search Filter -->
+                            <div style="position: relative; margin-bottom: 6px;">
+                                <input type="text" id="itemSearchFilter" class="setting-input" style="width: 100%; padding-left: 30px; font-size: 13px;" placeholder="🔍 Type to search (e.g. mace, villager, iron, sword, piston)..." oninput="onItemSearchInput(this.value)">
+                                <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.6; pointer-events: none;">🔍</span>
                             </div>
-                            <input type="text" id="customItemInput" class="setting-input" style="margin-top: 6px; width: 100%;" placeholder="Ya koi bhi item ID likho (e.g. nether_star, tnt, dirt)...">
+
+                            <!-- Dropdown populated dynamically -->
+                            <select id="customItemSelect" class="setting-input" style="width: 100%; font-size: 13px;" onchange="onPresetItemSelected(this.value)">
+                                <!-- Dynamically filled by JS -->
+                            </select>
+
+                            <!-- Direct Item ID Input with datalist autocomplete -->
+                            <div style="margin-top: 6px;">
+                                <input type="text" id="customItemInput" list="mcItemsDatalist" class="setting-input" style="width: 100%; font-size: 12px; color: #38bdf8;" placeholder="Item ID (e.g. diamond, netherite_sword, villager_spawn_egg)...">
+                                <datalist id="mcItemsDatalist"></datalist>
+                            </div>
                         </div>
 
                         <div>
@@ -1751,6 +1740,338 @@
             }
         }
 
+        // ==================== 220+ MINECRAFT BEDROCK ITEMS CATALOG ====================
+        const MC_ITEMS_CATALOG = [
+            // Weapons, Combat & Tools
+            { id: "mace", name: "Heavy Mace (1.21)", cat: "combat", icon: "🔨" },
+            { id: "trident", name: "Trident", cat: "combat", icon: "🔱" },
+            { id: "bow", name: "Bow", cat: "combat", icon: "🏹" },
+            { id: "crossbow", name: "Crossbow", cat: "combat", icon: "🏹" },
+            { id: "shield", name: "Shield", cat: "combat", icon: "🛡️" },
+            { id: "arrow", name: "Arrow", cat: "combat", icon: "🎯" },
+            { id: "spectral_arrow", name: "Spectral Arrow", cat: "combat", icon: "🎯" },
+            { id: "wind_charge", name: "Wind Charge (Breeze)", cat: "combat", icon: "💨" },
+            { id: "netherite_sword", name: "Netherite Sword", cat: "combat", icon: "🗡️" },
+            { id: "netherite_pickaxe", name: "Netherite Pickaxe", cat: "combat", icon: "⛏️" },
+            { id: "netherite_axe", name: "Netherite Axe", cat: "combat", icon: "🪓" },
+            { id: "netherite_shovel", name: "Netherite Shovel", cat: "combat", icon: "🥄" },
+            { id: "netherite_hoe", name: "Netherite Hoe", cat: "combat", icon: "🧑‍🌾" },
+            { id: "diamond_sword", name: "Diamond Sword", cat: "combat", icon: "🗡️" },
+            { id: "diamond_pickaxe", name: "Diamond Pickaxe", cat: "combat", icon: "⛏️" },
+            { id: "diamond_axe", name: "Diamond Axe", cat: "combat", icon: "🪓" },
+            { id: "diamond_shovel", name: "Diamond Shovel", cat: "combat", icon: "🥄" },
+            { id: "diamond_hoe", name: "Diamond Hoe", cat: "combat", icon: "🧑‍🌾" },
+            { id: "iron_sword", name: "Iron Sword", cat: "combat", icon: "🗡️" },
+            { id: "iron_pickaxe", name: "Iron Pickaxe", cat: "combat", icon: "⛏️" },
+            { id: "iron_axe", name: "Iron Axe", cat: "combat", icon: "🪓" },
+            { id: "iron_shovel", name: "Iron Shovel", cat: "combat", icon: "🥄" },
+            { id: "iron_hoe", name: "Iron Hoe", cat: "combat", icon: "🧑‍🌾" },
+            { id: "golden_sword", name: "Golden Sword", cat: "combat", icon: "🗡️" },
+            { id: "golden_pickaxe", name: "Golden Pickaxe", cat: "combat", icon: "⛏️" },
+            { id: "golden_axe", name: "Golden Axe", cat: "combat", icon: "🪓" },
+            { id: "flint_and_steel", name: "Flint and Steel", cat: "combat", icon: "🔥" },
+            { id: "shears", name: "Shears", cat: "combat", icon: "✂️" },
+            { id: "fishing_rod", name: "Fishing Rod", cat: "combat", icon: "🎣" },
+            { id: "spyglass", name: "Spyglass", cat: "combat", icon: "🔭" },
+            { id: "brush", name: "Archaeology Brush", cat: "combat", icon: "🖌️" },
+
+            // Armor & Elytra
+            { id: "elytra", name: "Elytra Wings (Flying)", cat: "armor", icon: "🪽" },
+            { id: "totem_of_undying", name: "Totem of Undying", cat: "armor", icon: "🛡️" },
+            { id: "firework_rocket", name: "Firework Rocket (Flight)", cat: "armor", icon: "🚀" },
+            { id: "turtle_helmet", name: "Turtle Shell (Water Breathing)", cat: "armor", icon: "🐢" },
+            { id: "netherite_helmet", name: "Netherite Helmet", cat: "armor", icon: "🪖" },
+            { id: "netherite_chestplate", name: "Netherite Chestplate", cat: "armor", icon: "🥋" },
+            { id: "netherite_leggings", name: "Netherite Leggings", cat: "armor", icon: "👖" },
+            { id: "netherite_boots", name: "Netherite Boots", cat: "armor", icon: "🥾" },
+            { id: "diamond_helmet", name: "Diamond Helmet", cat: "armor", icon: "🪖" },
+            { id: "diamond_chestplate", name: "Diamond Chestplate", cat: "armor", icon: "🥋" },
+            { id: "diamond_leggings", name: "Diamond Leggings", cat: "armor", icon: "👖" },
+            { id: "diamond_boots", name: "Diamond Boots", cat: "armor", icon: "🥾" },
+            { id: "iron_helmet", name: "Iron Helmet", cat: "armor", icon: "🪖" },
+            { id: "iron_chestplate", name: "Iron Chestplate", cat: "armor", icon: "🥋" },
+            { id: "iron_leggings", name: "Iron Leggings", cat: "armor", icon: "👖" },
+            { id: "iron_boots", name: "Iron Boots", cat: "armor", icon: "🥾" },
+            { id: "golden_helmet", name: "Golden Helmet (Piglin Safe)", cat: "armor", icon: "🪖" },
+            { id: "golden_boots", name: "Golden Boots (Piglin Safe)", cat: "armor", icon: "🥾" },
+            { id: "chainmail_chestplate", name: "Chainmail Chestplate", cat: "armor", icon: "🥋" },
+            { id: "leather_boots", name: "Leather Boots (Powder Snow Safe)", cat: "armor", icon: "🥾" },
+
+            // Ores, Minerals & Valuables
+            { id: "diamond", name: "Diamond", cat: "ores", icon: "💎" },
+            { id: "diamond_block", name: "Diamond Block", cat: "ores", icon: "💎" },
+            { id: "netherite_ingot", name: "Netherite Ingot", cat: "ores", icon: "🪙" },
+            { id: "netherite_block", name: "Netherite Block", cat: "ores", icon: "🪙" },
+            { id: "ancient_debris", name: "Ancient Debris", cat: "ores", icon: "🪨" },
+            { id: "netherite_scrap", name: "Netherite Scrap", cat: "ores", icon: "🪙" },
+            { id: "emerald", name: "Emerald", cat: "ores", icon: "💚" },
+            { id: "emerald_block", name: "Emerald Block", cat: "ores", icon: "💚" },
+            { id: "gold_ingot", name: "Gold Ingot", cat: "ores", icon: "🥇" },
+            { id: "gold_block", name: "Gold Block", cat: "ores", icon: "🥇" },
+            { id: "raw_gold", name: "Raw Gold", cat: "ores", icon: "🥇" },
+            { id: "gold_nugget", name: "Gold Nugget", cat: "ores", icon: "🥇" },
+            { id: "iron_ingot", name: "Iron Ingot", cat: "ores", icon: "🧱" },
+            { id: "iron_block", name: "Iron Block", cat: "ores", icon: "🧱" },
+            { id: "raw_iron", name: "Raw Iron", cat: "ores", icon: "🧱" },
+            { id: "copper_ingot", name: "Copper Ingot", cat: "ores", icon: "🥉" },
+            { id: "copper_block", name: "Copper Block", cat: "ores", icon: "🥉" },
+            { id: "raw_copper", name: "Raw Copper", cat: "ores", icon: "🥉" },
+            { id: "amethyst_shard", name: "Amethyst Shard", cat: "ores", icon: "💜" },
+            { id: "amethyst_block", name: "Amethyst Block", cat: "ores", icon: "💜" },
+            { id: "lapis_lazuli", name: "Lapis Lazuli", cat: "ores", icon: "🔷" },
+            { id: "lapis_block", name: "Lapis Block", cat: "ores", icon: "🔷" },
+            { id: "redstone", name: "Redstone Dust", cat: "ores", icon: "🔴" },
+            { id: "redstone_block", name: "Redstone Block", cat: "ores", icon: "🔴" },
+            { id: "coal", name: "Coal", cat: "ores", icon: "⚫" },
+            { id: "coal_block", name: "Coal Block", cat: "ores", icon: "⚫" },
+            { id: "quartz", name: "Nether Quartz", cat: "ores", icon: "⚪" },
+            { id: "quartz_block", name: "Quartz Block", cat: "ores", icon: "⚪" },
+
+            // Redstone & Auto-Farms
+            { id: "piston", name: "Piston", cat: "redstone", icon: "⚙️" },
+            { id: "sticky_piston", name: "Sticky Piston", cat: "redstone", icon: "⚙️" },
+            { id: "observer", name: "Observer (Auto-Farm Sensor)", cat: "redstone", icon: "👁️" },
+            { id: "hopper", name: "Hopper (Item Collector)", cat: "redstone", icon: "📥" },
+            { id: "dispenser", name: "Dispenser", cat: "redstone", icon: "📦" },
+            { id: "dropper", name: "Dropper", cat: "redstone", icon: "📦" },
+            { id: "repeater", name: "Redstone Repeater", cat: "redstone", icon: "⏱️" },
+            { id: "comparator", name: "Redstone Comparator", cat: "redstone", icon: "⚖️" },
+            { id: "redstone_torch", name: "Redstone Torch", cat: "redstone", icon: "🏮" },
+            { id: "redstone_lamp", name: "Redstone Lamp", cat: "redstone", icon: "💡" },
+            { id: "crafter", name: "Auto Crafter (1.21)", cat: "redstone", icon: "🏭" },
+            { id: "slime_block", name: "Slime Block", cat: "redstone", icon: "🟩" },
+            { id: "honey_block", name: "Honey Block", cat: "redstone", icon: "🍯" },
+            { id: "target", name: "Target Block", cat: "redstone", icon: "🎯" },
+            { id: "daylight_detector", name: "Daylight Detector", cat: "redstone", icon: "☀️" },
+            { id: "sculk_sensor", name: "Sculk Sensor", cat: "redstone", icon: "🔊" },
+            { id: "calibrated_sculk_sensor", name: "Calibrated Sculk Sensor", cat: "redstone", icon: "🔊" },
+            { id: "tripwire_hook", name: "Tripwire Hook", cat: "redstone", icon: "🪝" },
+            { id: "lever", name: "Lever (Farm Switch)", cat: "redstone", icon: "🕹️" },
+            { id: "stone_button", name: "Stone Button", cat: "redstone", icon: "🔘" },
+            { id: "trapped_chest", name: "Trapped Chest", cat: "redstone", icon: "📦" },
+            { id: "lightning_rod", name: "Lightning Rod", cat: "redstone", icon: "⚡" },
+            { id: "tnt", name: "TNT Block", cat: "redstone", icon: "🧨" },
+
+            // Food, Crops & Agriculture
+            { id: "enchanted_golden_apple", name: "Enchanted Golden Apple (God Apple)", cat: "food", icon: "🍎" },
+            { id: "golden_apple", name: "Golden Apple", cat: "food", icon: "🍏" },
+            { id: "golden_carrot", name: "Golden Carrot (Max Saturation)", cat: "food", icon: "🥕" },
+            { id: "cooked_beef", name: "Cooked Beef (Steak)", cat: "food", icon: "🥩" },
+            { id: "cooked_porkchop", name: "Cooked Porkchop", cat: "food", icon: "🍖" },
+            { id: "cooked_mutton", name: "Cooked Mutton", cat: "food", icon: "🥩" },
+            { id: "cooked_chicken", name: "Cooked Chicken", cat: "food", icon: "🍗" },
+            { id: "bread", name: "Bread", cat: "food", icon: "🍞" },
+            { id: "baked_potato", name: "Baked Potato", cat: "food", icon: "🥔" },
+            { id: "honey_bottle", name: "Honey Bottle", cat: "food", icon: "🍯" },
+            { id: "chorus_fruit", name: "Chorus Fruit (Teleport)", cat: "food", icon: "🟣" },
+            { id: "sweet_berries", name: "Sweet Berries", cat: "food", icon: "🍒" },
+            { id: "glow_berries", name: "Glow Berries", cat: "food", icon: "✨" },
+            { id: "pumpkin_pie", name: "Pumpkin Pie", cat: "food", icon: "🥧" },
+            { id: "bone_meal", name: "Bone Meal (Instant Grow)", cat: "food", icon: "🦴" },
+            { id: "wheat_seeds", name: "Wheat Seeds", cat: "food", icon: "🌾" },
+            { id: "carrot", name: "Carrot", cat: "food", icon: "🥕" },
+            { id: "potato", name: "Potato", cat: "food", icon: "🥔" },
+            { id: "sugar_cane", name: "Sugar Cane", cat: "food", icon: "🎋" },
+            { id: "bamboo", name: "Bamboo", cat: "food", icon: "🎋" },
+            { id: "kelp", name: "Kelp", cat: "food", icon: "🌿" },
+            { id: "melon_seeds", name: "Melon Seeds", cat: "food", icon: "🍉" },
+            { id: "pumpkin_seeds", name: "Pumpkin Seeds", cat: "food", icon: "🎃" },
+            { id: "beetroot_seeds", name: "Beetroot Seeds", cat: "food", icon: "🌱" },
+            { id: "nether_wart", name: "Nether Wart (Brewing)", cat: "food", icon: "🍄" },
+
+            // Magic, Rare, Nether & End
+            { id: "nether_star", name: "Nether Star (Wither Boss)", cat: "magic", icon: "⭐" },
+            { id: "beacon", name: "Beacon", cat: "magic", icon: "🌟" },
+            { id: "experience_bottle", name: "Bottle o' Enchanting (XP Bottle)", cat: "magic", icon: "🧪" },
+            { id: "ender_pearl", name: "Ender Pearl", cat: "magic", icon: "🔮" },
+            { id: "eye_of_ender", name: "Eye of Ender", cat: "magic", icon: "👁️" },
+            { id: "end_crystal", name: "End Crystal", cat: "magic", icon: "💎" },
+            { id: "dragon_egg", name: "Ender Dragon Egg", cat: "magic", icon: "🥚" },
+            { id: "dragon_breath", name: "Dragon's Breath", cat: "magic", icon: "💨" },
+            { id: "heavy_core", name: "Heavy Core (1.21 Mace)", cat: "magic", icon: "⬛" },
+            { id: "breeze_rod", name: "Breeze Rod (1.21)", cat: "magic", icon: "🌪️" },
+            { id: "trial_key", name: "Trial Key", cat: "magic", icon: "🗝️" },
+            { id: "ominous_trial_key", name: "Ominous Trial Key", cat: "magic", icon: "🗝️" },
+            { id: "ominous_bottle", name: "Ominous Bottle (Raid Bad Omen)", cat: "magic", icon: "🍾" },
+            { id: "echo_shard", name: "Echo Shard", cat: "magic", icon: "🔊" },
+            { id: "recovery_compass", name: "Recovery Compass", cat: "magic", icon: "🧭" },
+            { id: "conduit", name: "Conduit", cat: "magic", icon: "🐚" },
+            { id: "heart_of_the_sea", name: "Heart of the Sea", cat: "magic", icon: "💙" },
+            { id: "nautilus_shell", name: "Nautilus Shell", cat: "magic", icon: "🐚" },
+            { id: "shulker_box", name: "Shulker Box (Purple)", cat: "magic", icon: "📦" },
+            { id: "white_shulker_box", name: "White Shulker Box", cat: "magic", icon: "📦" },
+            { id: "black_shulker_box", name: "Black Shulker Box", cat: "magic", icon: "📦" },
+            { id: "blue_shulker_box", name: "Blue Shulker Box", cat: "magic", icon: "📦" },
+            { id: "red_shulker_box", name: "Red Shulker Box", cat: "magic", icon: "📦" },
+            { id: "shulker_shell", name: "Shulker Shell", cat: "magic", icon: "🐚" },
+            { id: "enchanted_book", name: "Enchanted Book", cat: "magic", icon: "📖" },
+            { id: "wither_skeleton_skull", name: "Wither Skeleton Skull", cat: "magic", icon: "💀" },
+            { id: "skeleton_skull", name: "Skeleton Skull", cat: "magic", icon: "💀" },
+            { id: "creeper_head", name: "Creeper Head", cat: "magic", icon: "🟩" },
+            { id: "zombie_head", name: "Zombie Head", cat: "magic", icon: "🧟" },
+            { id: "dragon_head", name: "Dragon Head", cat: "magic", icon: "🐲" },
+
+            // Building Blocks & Woods
+            { id: "obsidian", name: "Obsidian", cat: "building", icon: "🧱" },
+            { id: "crying_obsidian", name: "Crying Obsidian", cat: "building", icon: "🟣" },
+            { id: "bedrock", name: "Bedrock (Indestructible)", cat: "building", icon: "🛑" },
+            { id: "oak_log", name: "Oak Log", cat: "building", icon: "🪵" },
+            { id: "oak_planks", name: "Oak Planks", cat: "building", icon: "🪵" },
+            { id: "spruce_log", name: "Spruce Log", cat: "building", icon: "🪵" },
+            { id: "spruce_planks", name: "Spruce Planks", cat: "building", icon: "🪵" },
+            { id: "cherry_log", name: "Cherry Wood Log", cat: "building", icon: "🌸" },
+            { id: "cherry_planks", name: "Cherry Wood Planks", cat: "building", icon: "🌸" },
+            { id: "mangrove_log", name: "Mangrove Log", cat: "building", icon: "🪵" },
+            { id: "bamboo_block", name: "Block of Bamboo", cat: "building", icon: "🎋" },
+            { id: "crimson_stem", name: "Crimson Stem (Nether)", cat: "building", icon: "🪵" },
+            { id: "warped_stem", name: "Warped Stem (Nether)", cat: "building", icon: "🪵" },
+            { id: "stone", name: "Stone", cat: "building", icon: "🪨" },
+            { id: "cobblestone", name: "Cobblestone", cat: "building", icon: "🪨" },
+            { id: "smooth_stone", name: "Smooth Stone", cat: "building", icon: "🪨" },
+            { id: "deepslate", name: "Deepslate", cat: "building", icon: "🪨" },
+            { id: "reinforced_deepslate", name: "Reinforced Deepslate", cat: "building", icon: "🪨" },
+            { id: "granite", name: "Granite", cat: "building", icon: "🪨" },
+            { id: "diorite", name: "Diorite", cat: "building", icon: "🪨" },
+            { id: "andesite", name: "Andesite", cat: "building", icon: "🪨" },
+            { id: "bricks", name: "Bricks", cat: "building", icon: "🧱" },
+            { id: "prismarine", name: "Prismarine", cat: "building", icon: "🌊" },
+            { id: "sea_lantern", name: "Sea Lantern", cat: "building", icon: "🏮" },
+            { id: "glowstone", name: "Glowstone", cat: "building", icon: "💡" },
+            { id: "glass", name: "Glass Block", cat: "building", icon: "🪟" },
+            { id: "tinted_glass", name: "Tinted Glass (Blocks Light)", cat: "building", icon: "🕶️" },
+            { id: "white_concrete", name: "White Concrete", cat: "building", icon: "⬜" },
+            { id: "black_concrete", name: "Black Concrete", cat: "building", icon: "⬛" },
+            { id: "sponge", name: "Sponge (Clears Water)", cat: "building", icon: "🧽" },
+            { id: "scaffolding", name: "Scaffolding", cat: "building", icon: "🪜" },
+            { id: "ladder", name: "Ladder", cat: "building", icon: "🪜" },
+            { id: "lantern", name: "Lantern", cat: "building", icon: "🏮" },
+
+            // Storage, Utility & Transport
+            { id: "chest", name: "Chest", cat: "utility", icon: "📦" },
+            { id: "barrel", name: "Barrel", cat: "utility", icon: "🛢️" },
+            { id: "ender_chest", name: "Ender Chest", cat: "utility", icon: "🌌" },
+            { id: "anvil", name: "Anvil", cat: "utility", icon: "🔨" },
+            { id: "enchanting_table", name: "Enchanting Table", cat: "utility", icon: "📖" },
+            { id: "brewing_stand", name: "Brewing Stand", cat: "utility", icon: "🧪" },
+            { id: "smithing_table", name: "Smithing Table", cat: "utility", icon: "🔨" },
+            { id: "grindstone", name: "Grindstone", cat: "utility", icon: "⚙️" },
+            { id: "blast_furnace", name: "Blast Furnace (Fast Smelt)", cat: "utility", icon: "🔥" },
+            { id: "smoker", name: "Smoker (Fast Food)", cat: "utility", icon: "🥩" },
+            { id: "furnace", name: "Furnace", cat: "utility", icon: "🔥" },
+            { id: "water_bucket", name: "Water Bucket", cat: "utility", icon: "🪣" },
+            { id: "lava_bucket", name: "Lava Bucket", cat: "utility", icon: "🪣" },
+            { id: "powder_snow_bucket", name: "Powder Snow Bucket", cat: "utility", icon: "❄️" },
+            { id: "milk_bucket", name: "Milk Bucket (Clear Effects)", cat: "utility", icon: "🥛" },
+            { id: "saddle", name: "Saddle", cat: "utility", icon: "🐎" },
+            { id: "name_tag", name: "Name Tag", cat: "utility", icon: "🏷️" },
+            { id: "lead", name: "Lead", cat: "utility", icon: "🪢" },
+            { id: "minecart", name: "Minecart", cat: "utility", icon: "🛒" },
+            { id: "hopper_minecart", name: "Minecart with Hopper", cat: "utility", icon: "🛒" },
+            { id: "rail", name: "Rail", cat: "utility", icon: "🛤️" },
+            { id: "powered_rail", name: "Powered Rail", cat: "utility", icon: "🛤️" },
+            { id: "boat", name: "Oak Boat", cat: "utility", icon: "🚣" },
+
+            // Mob Drops & Materials
+            { id: "blaze_rod", name: "Blaze Rod", cat: "drops", icon: "🔥" },
+            { id: "gunpowder", name: "Gunpowder", cat: "drops", icon: "🧨" },
+            { id: "bone", name: "Bone", cat: "drops", icon: "🦴" },
+            { id: "string", name: "String", cat: "drops", icon: "🕸️" },
+            { id: "slime_ball", name: "Slimeball", cat: "drops", icon: "🟢" },
+            { id: "magma_cream", name: "Magma Cream", cat: "drops", icon: "🟠" },
+            { id: "ghast_tear", name: "Ghast Tear", cat: "drops", icon: "💧" },
+            { id: "phantom_membrane", name: "Phantom Membrane (Repair Elytra)", cat: "drops", icon: "🦇" },
+            { id: "leather", name: "Leather", cat: "drops", icon: "👞" },
+            { id: "feather", name: "Feather", cat: "drops", icon: "🪶" },
+            { id: "spider_eye", name: "Spider Eye", cat: "drops", icon: "🕷️" },
+            { id: "rotten_flesh", name: "Rotten Flesh", cat: "drops", icon: "🧟" },
+            { id: "ink_sac", name: "Ink Sac", cat: "drops", icon: "🦑" },
+            { id: "glow_ink_sac", name: "Glow Ink Sac", cat: "drops", icon: "✨" },
+
+            // Spawn Eggs (Vital for Auto-Farms, Villagers, Pets & Mobs!)
+            { id: "villager_spawn_egg", name: "Villager Spawn Egg (Trading)", cat: "spawns", icon: "👨‍🌾" },
+            { id: "iron_golem_spawn_egg", name: "Iron Golem Spawn Egg", cat: "spawns", icon: "🤖" },
+            { id: "allay_spawn_egg", name: "Allay Spawn Egg (Item Sorter)", cat: "spawns", icon: "🧚" },
+            { id: "armadillo_spawn_egg", name: "Armadillo Spawn Egg (Wolf Armor)", cat: "spawns", icon: "🦔" },
+            { id: "wolf_spawn_egg", name: "Wolf / Dog Spawn Egg", cat: "spawns", icon: "🐺" },
+            { id: "cat_spawn_egg", name: "Cat Spawn Egg (Creeper Repellent)", cat: "spawns", icon: "🐱" },
+            { id: "horse_spawn_egg", name: "Horse Spawn Egg", cat: "spawns", icon: "🐴" },
+            { id: "cow_spawn_egg", name: "Cow Spawn Egg", cat: "spawns", icon: "🐄" },
+            { id: "sheep_spawn_egg", name: "Sheep Spawn Egg", cat: "spawns", icon: "🐑" },
+            { id: "chicken_spawn_egg", name: "Chicken Spawn Egg", cat: "spawns", icon: "🐔" },
+            { id: "bee_spawn_egg", name: "Bee Spawn Egg (Honey Farm)", cat: "spawns", icon: "🐝" },
+            { id: "breeze_spawn_egg", name: "Breeze Spawn Egg (1.21)", cat: "spawns", icon: "🌪️" },
+            { id: "warden_spawn_egg", name: "Warden Spawn Egg", cat: "spawns", icon: "👹" },
+            { id: "wither_skeleton_spawn_egg", name: "Wither Skeleton Spawn Egg", cat: "spawns", icon: "💀" },
+            { id: "blaze_spawn_egg", name: "Blaze Spawn Egg", cat: "spawns", icon: "🔥" },
+            { id: "enderman_spawn_egg", name: "Enderman Spawn Egg", cat: "spawns", icon: "👾" },
+            { id: "creeper_spawn_egg", name: "Creeper Spawn Egg", cat: "spawns", icon: "💥" },
+            { id: "zombie_spawn_egg", name: "Zombie Spawn Egg", cat: "spawns", icon: "🧟" },
+            { id: "skeleton_spawn_egg", name: "Skeleton Spawn Egg", cat: "spawns", icon: "🏹" },
+            { id: "witch_spawn_egg", name: "Witch Spawn Egg", cat: "spawns", icon: "🧙" },
+            { id: "slime_spawn_egg", name: "Slime Spawn Egg", cat: "spawns", icon: "🟢" },
+            { id: "magma_cube_spawn_egg", name: "Magma Cube Spawn Egg", cat: "spawns", icon: "🟠" },
+            { id: "ghast_spawn_egg", name: "Ghast Spawn Egg", cat: "spawns", icon: "👻" },
+            { id: "shulker_spawn_egg", name: "Shulker Spawn Egg", cat: "spawns", icon: "📦" }
+        ];
+
+        let currentItemCategory = "all";
+        let currentItemSearch = "";
+
+        function renderItemCatalog() {
+            const select = document.getElementById("customItemSelect");
+            const datalist = document.getElementById("mcItemsDatalist");
+            const badge = document.getElementById("itemCountBadge");
+            if (!select) return;
+
+            const filtered = MC_ITEMS_CATALOG.filter(it => {
+                const matchCat = (currentItemCategory === "all" || it.cat === currentItemCategory);
+                const q = currentItemSearch.toLowerCase();
+                const matchSearch = !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q);
+                return matchCat && matchSearch;
+            });
+
+            if (badge) {
+                badge.innerText = `${filtered.length} Items Found`;
+            }
+
+            select.innerHTML = `<option value="">-- Choose Item (${filtered.length} Available) --</option>`;
+            if (datalist) datalist.innerHTML = "";
+
+            filtered.forEach(it => {
+                const opt = document.createElement("option");
+                opt.value = it.id;
+                opt.textContent = `${it.icon} ${it.name} (${it.id})`;
+                select.appendChild(opt);
+
+                if (datalist) {
+                    const dOpt = document.createElement("option");
+                    dOpt.value = it.id;
+                    dOpt.label = `${it.icon} ${it.name}`;
+                    datalist.appendChild(dOpt);
+                }
+            });
+        }
+
+        function filterItemCategory(cat, btn) {
+            currentItemCategory = cat;
+            document.querySelectorAll(".item-cat-btn").forEach(b => {
+                b.style.background = "#1e293b";
+                b.style.color = "#cbd5e1";
+                b.style.borderColor = "#475569";
+            });
+            if (btn) {
+                btn.style.background = "#0284c7";
+                btn.style.color = "#ffffff";
+                btn.style.borderColor = "#38bdf8";
+            }
+            renderItemCatalog();
+        }
+
+        function onItemSearchInput(val) {
+            currentItemSearch = val.trim();
+            renderItemCatalog();
+        }
+
         async function giveCustomItem() {
             let item = document.getElementById("customItemInput") ? document.getElementById("customItemInput").value.trim() : "";
             const presetSelect = document.getElementById("customItemSelect");
@@ -2051,6 +2372,7 @@
         }
 
         // Auto intervals
+        renderItemCatalog();
         fetchStatus();
         fetchLogs();
         fetchSettings();
